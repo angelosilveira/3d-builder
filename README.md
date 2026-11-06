@@ -22,13 +22,40 @@ mão de obra (pedreiro, ajudante e servente).
 | **Materiais** | Quantitativo previsto (cimento, areia, brita, aço, tijolo, telha, piso, tinta), consumo **esperado** para o avanço atual, lançamentos reais e **desvio** (alerta de desperdício). |
 | **Mão de obra** | Horas previstas × apontadas por função (pedreiro, ajudante, servente), diárias e custo. |
 
+## Canteiro ao vivo (gêmeo digital) — `/canteiro`
+
+Tela cheia para o engenheiro e o mestre de obras responderem *"como está a obra agora e o
+que precisa da minha atenção?"*.
+
+- **Cena isométrica low-poly** (câmera ortográfica + `CameraControls`): prédio de 8
+  pavimentos (concluídos, atual com pilares/vigas/fôrmas, futuros em fantasma), grua com
+  lança girando e carga, 3 betoneiras (uma na bomba, uma na fila, uma na rua), bomba com
+  lança, escavadeira, retroescavadeira, elevador de cremalheira, estoque, vergalhões,
+  contêineres, andaimes, tapumes, rua e árvores. Pilares, vigas, paletes, vergalhões,
+  árvores e trabalhadores usam `InstancedMesh`.
+- **Interação**: hover com contorno, clique com voo de câmera, controles (zoom, girar 90°,
+  recentralizar) e **pins** de alerta (concretagem atrasada, equipamento parado, NC,
+  tempo de mistura > 150 min).
+- **HUD**: busca global (`/`), seletor de obra, relógio ao vivo, notificações, KPIs,
+  card de detalhe por tipo (pilar/laje, betoneira, equipamento, equipe, concretagem ou
+  visão da obra), rastreamento da concretagem e tabela com abas sincronizada com a cena.
+- **Cronograma 4D**: arraste (ou use o teclado) para o prédio crescer ou regredir
+  pavimento por pavimento, com plano de corte animado; o modo *Previsto x Executado*
+  pinta os pavimentos por desvio.
+- **Ao vivo**: a simulação descarrega a betoneira, enche a laje L6 em 3D, anda a fila de
+  caminhões e atualiza KPIs a cada 3 s.
+
+Arquitetura em `src/features/canteiro/`: `data/` (tipos, mocks consistentes, lógica 4D
+pura, simulação, `useObraData`), `state/` (store de UI com seletores finos), `scene/`
+(R3F; troque geometrias por GLTF em `scene/ModelSlot.tsx`) e `hud/` (React puro).
+
 ## Stack
 
 - **React 19** + **TypeScript** + **Vite**
 - **three.js** via **@react-three/fiber** e **@react-three/drei**
 - **zustand** (estado + persistência)
 - **pdf.js** (leitura de plantas em PDF, carregado sob demanda)
-- **Vitest** (testes da lógica de negócio)
+- **Vitest** + **React Testing Library** (lógica de negócio e componentes do HUD)
 
 ## Como rodar
 
