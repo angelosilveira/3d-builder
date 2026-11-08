@@ -1,11 +1,11 @@
 import { useMemo } from 'react'
-import { SEVERIDADE_LABEL, STATUS, STATUS_LABEL, TIPO_PLURAL, TIPOS } from '../data/catalogo'
-import { filtrosAtivos } from '../data/derived'
+import { MATURIDADE_LABEL, MATURIDADES, SEVERIDADE_LABEL, STATUS, STATUS_LABEL, TIPO_PLURAL, TIPOS } from '../data/catalogo'
+import { filtrosAtivos, statusDoAtivo } from '../data/derived'
 import { useAppSecData } from '../data/store'
-import type { Severidade, StatusQualificacao, TipoAtivo } from '../data/types'
+import type { Maturidade, Severidade, StatusQualificacao, TipoAtivo } from '../data/types'
 import { useAppSecUi } from '../state/uiStore'
 import { num } from './format'
-import { IconeTipo } from './ui'
+import { IconeTipo, NivelMaturidade } from './ui'
 
 const NIVEIS: { valor: Severidade | null; rotulo: string; descricao: string }[] = [
   { valor: null, rotulo: 'Todas', descricao: 'Todos os ativos' },
@@ -21,6 +21,7 @@ function alternar<T>(lista: T[], item: T): T[] {
 /** Filtros da cena e da tabela. Os chips também são a legenda das formas e cores. */
 export function Filtros() {
   const data = useAppSecData((s) => s.data)
+  const indice = useAppSecData((s) => s.indice)
   const filtros = useAppSecUi((s) => s.filtros)
   const setFiltros = useAppSecUi((s) => s.setFiltros)
   const limpar = useAppSecUi((s) => s.limparFiltros)
@@ -29,12 +30,14 @@ export function Filtros() {
   const contagem = useMemo(() => {
     const tipo = Object.fromEntries(TIPOS.map((t) => [t, 0])) as Record<TipoAtivo, number>
     const status = Object.fromEntries(STATUS.map((s) => [s, 0])) as Record<StatusQualificacao, number>
-    for (const a of data.ativos) {
+    const maturidade = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } as Record<Maturidade, number>
+    data.ativos.forEach((a, i) => {
       tipo[a.tipo]++
-      status[a.qualificacao.status]++
-    }
-    return { tipo, status }
-  }, [data])
+      status[statusDoAtivo(indice, i)]++
+      maturidade[indice.maturidade[i] as Maturidade]++
+    })
+    return { tipo, status, maturidade }
+  }, [data, indice])
 
   return (
     <section className="aps-panel aps-filtros" aria-label="Filtros e legenda">
@@ -92,6 +95,29 @@ export function Filtros() {
       </fieldset>
 
       <fieldset className="aps-grupo">
+        <legend>Maturidade · altura no mapa</legend>
+        <div className="aps-chips aps-chips-mat">
+          {MATURIDADES.map((m) => {
+            const on = filtros.maturidades.includes(m)
+            return (
+              <button
+                key={m}
+                type="button"
+                className={`aps-chip${on ? ' is-on' : ''}`}
+                aria-pressed={on}
+                aria-label={`Maturidade ${m}, ${MATURIDADE_LABEL[m]}: ${num(contagem.maturidade[m])} ativos`}
+                title={`${MATURIDADE_LABEL[m]} · ${num(contagem.maturidade[m])} ativos`}
+                onClick={() => setFiltros({ maturidades: alternar(filtros.maturidades, m) })}
+              >
+                <NivelMaturidade nivel={m} comRotulo={false} />
+                {m}
+              </button>
+            )
+          })}
+        </div>
+      </fieldset>
+
+      <fieldset className="aps-grupo">
         <legend>Com vulnerabilidade aberta</legend>
         <div className="aps-seg" role="radiogroup" aria-label="Severidade mínima">
           {NIVEIS.map((n) => (
@@ -126,8 +152,12 @@ export function Filtros() {
           </select>
         </label>
         <label className="aps-check">
-          <input type="checkbox" checked={filtros.apenasPendenciaVencida} onChange={(e) => setFiltros({ apenasPendenciaVencida: e.target.checked })} />
-          Só com pendência vencida
+          <input type="checkbox" checked={filtros.apenasPrazoVencido} onChange={(e) => setFiltros({ apenasPrazoVencido: e.target.checked })} />
+          Só com prazo vencido
+        </label>
+        <label className="aps-check">
+          <input type="checkbox" checked={filtros.apenasDocsFaltando} onChange={(e) => setFiltros({ apenasDocsFaltando: e.target.checked })} />
+          Só com documentos faltando
         </label>
       </div>
 
@@ -136,7 +166,7 @@ export function Filtros() {
           <i className="aps-leg-losango" aria-hidden /> Vulnerabilidade crítica ou alta aberta
         </li>
         <li>
-          <i className="aps-leg-anel" aria-hidden /> Pendência vencida
+          <i className="aps-leg-anel" aria-hidden /> Prazo vencido (qualificação ou pendência)
         </li>
         <li>
           <i className="aps-leg-esmaecido" aria-hidden /> Fora do filtro

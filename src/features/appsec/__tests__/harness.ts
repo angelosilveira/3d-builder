@@ -9,6 +9,6 @@ export const AGORA = new Date('2026-11-08T12:00:00-03:00')
 export function prepararStores() {
   act(() => {
     useAppSecData.getState().carregar(criarAppSecMock({ agora: AGORA }))
-    useAppSecUi.setState({ selecao: null, hoverId: null, filtros: FILTROS_VAZIOS, aba: 'ativos', comando: null })
+    useAppSecUi.setState({ selecao: null, hoverId: null, filtros: FILTROS_VAZIOS, aba: 'qualificacoes', comando: null })
   })
 }

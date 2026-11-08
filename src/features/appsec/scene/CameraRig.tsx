@@ -53,6 +53,8 @@ function regiaoDaSelecao(sel: Selecao): Regiao | null {
   switch (sel.tipo) {
     case 'ativo':
       return doAtivo(sel.id)
+    case 'qualificacao':
+      return doAtivo(indice.qualPorId.get(sel.id)?.ativoId)
     case 'vulnerabilidade':
       return doAtivo(data.vulnerabilidades.find((v) => v.id === sel.id)?.ativoId)
     case 'pendencia':

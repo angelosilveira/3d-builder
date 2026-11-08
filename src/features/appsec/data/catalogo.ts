@@ -1,5 +1,7 @@
 import type {
+  CategoriaDocumento,
   Criticidade,
+  Maturidade,
   OrigemVulnerabilidade,
   Severidade,
   StatusPendencia,
@@ -290,3 +292,51 @@ export const VERSAO_FORMULARIO: Record<TipoAtivo, string> = {
   mobile: 'v2.3',
   desktop: 'v1.8',
 }
+
+export const MATURIDADES: Maturidade[] = [1, 2, 3, 4, 5]
+
+export const MATURIDADE_LABEL: Record<Maturidade, string> = {
+  1: 'Inicial',
+  2: 'Repetível',
+  3: 'Definido',
+  4: 'Gerenciado',
+  5: 'Otimizado',
+}
+
+export const CATEGORIA_DOC_LABEL: Record<CategoriaDocumento, string> = {
+  pentest: 'Relatório de pentest',
+  sbom: 'SBOM',
+  arquitetura: 'Diagrama de arquitetura',
+  evidencia: 'Evidência técnica',
+  aceite_risco: 'Aceite de risco',
+}
+
+/** Documentos que cada formulário exige para a qualificação ser aprovada. */
+export const DOCUMENTOS_OBRIGATORIOS: Record<TipoAtivo, CategoriaDocumento[]> = {
+  proxy: ['arquitetura', 'evidencia', 'pentest'],
+  microservico: ['arquitetura', 'sbom'],
+  web: ['arquitetura', 'sbom', 'pentest'],
+  mobile: ['sbom', 'pentest'],
+  desktop: ['sbom', 'evidencia'],
+}
+
+/** Nome típico do arquivo enviado em cada categoria. */
+export const NOME_DOCUMENTO: Record<CategoriaDocumento, { nome: string; formato: 'pdf' | 'json' | 'png' | 'xlsx' | 'docx' }> = {
+  pentest: { nome: 'relatorio-pentest', formato: 'pdf' },
+  sbom: { nome: 'sbom-cyclonedx', formato: 'json' },
+  arquitetura: { nome: 'diagrama-arquitetura', formato: 'png' },
+  evidencia: { nome: 'evidencias-configuracao', formato: 'xlsx' },
+  aceite_risco: { nome: 'aceite-de-risco-assinado', formato: 'pdf' },
+}
+
+/** Versões anteriores dos formulários (para o histórico de requalificações). */
+export const VERSOES_ANTERIORES: Record<TipoAtivo, string[]> = {
+  proxy: ['v2.4', 'v3.0', 'v3.1'],
+  microservico: ['v3.2', 'v3.6', 'v4.0'],
+  web: ['v3.1', 'v3.5', 'v3.8'],
+  mobile: ['v1.6', 'v2.0', 'v2.2'],
+  desktop: ['v1.2', 'v1.5', 'v1.7'],
+}
+
+/** Prazo padrão (dias) para concluir uma qualificação aberta. */
+export const PRAZO_QUALIFICACAO_DIAS = 45

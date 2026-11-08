@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { FILTROS_VAZIOS, type Filtros } from '../data/derived'
 import type { Selecao } from '../data/types'
 
-export type Aba = 'ativos' | 'vulnerabilidades' | 'pendencias' | 'projetos' | 'analistas'
+export type Aba = 'qualificacoes' | 'vulnerabilidades' | 'pendencias' | 'projetos' | 'analistas'
 export type ComandoCamera = 'zoom_in' | 'zoom_out' | 'girar_esquerda' | 'girar_direita' | 'recentralizar' | 'enquadrar'
 
 /** Região do mapa (centro e tamanho) para o comando "enquadrar". */
@@ -31,7 +31,8 @@ interface AppSecUiState {
 
 /** Aba da tabela que lista cada tipo de seleção. */
 const ABA_DA_SELECAO: Record<Selecao['tipo'], Aba> = {
-  ativo: 'ativos',
+  ativo: 'qualificacoes',
+  qualificacao: 'qualificacoes',
   projeto: 'projetos',
   vulnerabilidade: 'vulnerabilidades',
   pendencia: 'pendencias',
@@ -42,7 +43,7 @@ export const useAppSecUi = create<AppSecUiState>()((set) => ({
   selecao: null,
   hoverId: null,
   filtros: FILTROS_VAZIOS,
-  aba: 'ativos',
+  aba: 'qualificacoes',
   comando: null,
 
   selecionar: (selecao) => set((s) => ({ selecao, aba: selecao ? ABA_DA_SELECAO[selecao.tipo] : s.aba })),

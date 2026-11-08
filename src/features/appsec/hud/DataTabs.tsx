@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { SEVERIDADES, TIPO_LABEL } from '../data/catalogo'
-import { pendenciaVencida, vulnAberta, vulnVencida } from '../data/derived'
+import { contarStatus, pendenciaVencida, qualificacaoVencida, vulnAberta, vulnVencida } from '../data/derived'
 import { useAppSecData } from '../data/store'
 import type { Selecao } from '../data/types'
 import { useAppSecUi, type Aba } from '../state/uiStore'
 import { useMascara } from '../state/useMascara'
 import { dataCurta, num, pct, textoPrazo } from './format'
-import { BarraEmpilhada, contarStatus, IconeTipo, PilulaPendencia, PilulaSeveridade, PilulaStatus, STATUS_PARTES } from './ui'
+import { BarraEmpilhada, IconeTipo, NivelMaturidade, PilulaPendencia, PilulaSeveridade, PilulaStatus, STATUS_PARTES } from './ui'
 
 export const ALTURA_LINHA = 38
 
@@ -112,7 +112,7 @@ function TabelaVirtual<T>({ legenda, itens, colunas, codigo, sel, selecionadoId 
 }
 
 const ABAS: { id: Aba; rotulo: string }[] = [
-  { id: 'ativos', rotulo: 'Ativos' },
+  { id: 'qualificacoes', rotulo: 'Qualificações' },
   { id: 'vulnerabilidades', rotulo: 'Vulnerabilidades' },
   { id: 'pendencias', rotulo: 'Pendências' },
   { id: 'projetos', rotulo: 'Projetos' },
@@ -133,7 +133,11 @@ export function DataTabs() {
 
   // Listas já ordenadas por prioridade de ação.
   const listas = useMemo(() => {
-    const ativos = data.ativos.filter((a) => dentro(a.id)).sort((a, b) => indice.risco[indice.posAtivo.get(b.id)!] - indice.risco[indice.posAtivo.get(a.id)!])
+    // Qualificações vigentes dos ativos no filtro: prazos vencidos primeiro, depois maior risco.
+    const qualificacoes = data.ativos
+      .filter((a) => dentro(a.id) && indice.vigente.has(a.id))
+      .map((a) => ({ ativo: a, q: indice.vigente.get(a.id)!, i: indice.posAtivo.get(a.id)! }))
+      .sort((x, y) => indice.prazoVencido[y.i] - indice.prazoVencido[x.i] || indice.risco[y.i] - indice.risco[x.i])
     const vulnerabilidades = data.vulnerabilidades
       .filter((v) => vulnAberta(v) && dentro(v.ativoId))
       .sort(
@@ -147,7 +151,7 @@ export function DataTabs() {
       .map((p) => {
         const ativosP = (indice.ativosPorProjeto.get(p.id) ?? []).filter((a) => dentro(a.id))
         const criticas = ativosP.reduce((s, a) => s + (indice.vulnsPorAtivo.get(a.id) ?? []).filter((v) => v.severidade === 'critica' && vulnAberta(v)).length, 0)
-        return { projeto: p, ativos: ativosP, criticas, status: contarStatus(ativosP) }
+        return { projeto: p, ativos: ativosP, criticas, status: contarStatus(indice, ativosP) }
       })
       .filter((p) => p.ativos.length > 0)
       .sort((a, b) => b.criticas - a.criticas || b.status.reprovado - a.status.reprovado)
@@ -155,14 +159,14 @@ export function DataTabs() {
       .map((a) => {
         const ativosA = (indice.ativosPorAnalista.get(a.id) ?? []).filter((x) => dentro(x.id))
         const pend = ativosA.reduce((s, x) => s + (indice.pendPorAtivo.get(x.id) ?? []).filter((p) => pendenciaVencida(p, agora)).length, 0)
-        return { analista: a, ativos: ativosA, status: contarStatus(ativosA), pendVencidas: pend }
+        return { analista: a, ativos: ativosA, status: contarStatus(indice, ativosA), pendVencidas: pend }
       })
       .sort((a, b) => b.status.rascunho - a.status.rascunho)
-    return { ativos, vulnerabilidades, pendencias, projetos, analistas }
+    return { qualificacoes, vulnerabilidades, pendencias, projetos, analistas }
   }, [data, indice, dentro, agora])
 
   const contagem: Record<Aba, number> = {
-    ativos: listas.ativos.length,
+    qualificacoes: listas.qualificacoes.length,
     vulnerabilidades: listas.vulnerabilidades.length,
     pendencias: listas.pendencias.length,
     projetos: listas.projetos.length,
@@ -178,6 +182,8 @@ export function DataTabs() {
   }
 
   const selId = selecao?.id ?? null
+  // Ativo clicado na cena = sua qualificação vigente na tabela.
+  const selQual = selecao?.tipo === 'ativo' ? (indice.vigente.get(selecao.id)?.id ?? null) : selecao?.tipo === 'qualificacao' ? selecao.id : null
 
   return (
     <section className="aps-panel aps-tabs" aria-label="Listas de ativos, vulnerabilidades, pendências, projetos e analistas">
@@ -204,28 +210,40 @@ export function DataTabs() {
         ))}
       </div>
       <div role="tabpanel" id={`${base}-painel`} aria-labelledby={`${base}-tab-${aba}`} className="aps-tabpanel">
-        {aba === 'ativos' && (
+        {aba === 'qualificacoes' && (
           <TabelaVirtual
-            legenda="Ativos ordenados por risco"
-            itens={listas.ativos}
-            codigo={(a) => a.codigo}
-            sel={(a) => ({ tipo: 'ativo', id: a.id })}
-            selecionadoId={selId}
+            legenda="Qualificações vigentes, prazos vencidos primeiro"
+            itens={listas.qualificacoes}
+            codigo={(x) => x.q.codigo}
+            sel={(x) => ({ tipo: 'qualificacao', id: x.q.id })}
+            selecionadoId={selQual}
             colunas={[
               {
                 rotulo: 'Ativo',
                 classe: 'aps-col-longa',
-                render: (a) => (
+                render: (x) => (
                   <span className="aps-cel-ativo">
-                    <IconeTipo tipo={a.tipo} />
-                    <span className="aps-mono" title={`${TIPO_LABEL[a.tipo]} · ${a.nome}`}>
-                      {a.nome}
+                    <IconeTipo tipo={x.ativo.tipo} />
+                    <span className="aps-mono" title={`${TIPO_LABEL[x.ativo.tipo]} · ${x.ativo.nome}`}>
+                      {x.ativo.nome}
                     </span>
                   </span>
                 ),
               },
-              { rotulo: 'Status', render: (a) => <PilulaStatus status={a.qualificacao.status} /> },
-              { rotulo: 'Vuln. abertas', classe: 'aps-num', render: (a) => <span className="aps-mono">{indice.abertas[indice.posAtivo.get(a.id)!] || '—'}</span> },
+              { rotulo: 'Status', render: (x) => <PilulaStatus status={x.q.status} /> },
+              { rotulo: 'Maturidade', render: (x) => <NivelMaturidade nivel={x.q.maturidade} comRotulo={false} /> },
+              {
+                rotulo: 'Prazo',
+                render: (x) => {
+                  const venc = qualificacaoVencida(x.q, agora)
+                  const data = x.q.status === 'aprovado' && x.q.validadeAte ? x.q.validadeAte : x.q.prazo
+                  return (
+                    <span className={`aps-mono${venc ? ' aps-txt-ruim' : ''}`} title={x.q.status === 'aprovado' ? 'Validade da qualificação' : textoPrazo(x.q.prazo, agora)}>
+                      {dataCurta(data)}
+                    </span>
+                  )
+                },
+              },
             ]}
           />
         )}

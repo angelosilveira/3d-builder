@@ -2,7 +2,7 @@ import type { ThreeEvent } from '@react-three/fiber'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { TIPOS } from '../data/catalogo'
-import { SEM_VULN } from '../data/derived'
+import { SEM_VULN, statusDoAtivo } from '../data/derived'
 import { useAppSecData } from '../data/store'
 import type { Selecao, Severidade, TipoAtivo } from '../data/types'
 import { useAppSecUi } from '../state/uiStore'
@@ -25,11 +25,15 @@ function criarGeometrias(): Record<TipoAtivo, THREE.BufferGeometry> {
   }
 }
 
-/** Índice do ativo destacado pela seleção (ativo, vulnerabilidade ou pendência). */
+/** Altura relativa da forma pela maturidade (nível 1 = 0,8 … nível 5 = 1,6). */
+export const alturaMaturidade = (nivel: number) => 0.6 + 0.2 * Math.max(1, nivel)
+
+/** Ativo destacado pela seleção (ativo, qualificação, vulnerabilidade ou pendência). */
 function ativoDaSelecao(selecao: Selecao | null): string | null {
   if (!selecao) return null
-  const { data } = useAppSecData.getState()
+  const { data, indice } = useAppSecData.getState()
   if (selecao.tipo === 'ativo') return selecao.id
+  if (selecao.tipo === 'qualificacao') return indice.qualPorId.get(selecao.id)?.ativoId ?? null
   if (selecao.tipo === 'vulnerabilidade') return data.vulnerabilidades.find((v) => v.id === selecao.id)?.ativoId ?? null
   if (selecao.tipo === 'pendencia') return data.pendencias.find((p) => p.id === selecao.id)?.ativoId ?? null
   return null
@@ -82,7 +86,7 @@ export function Ecossistema() {
   }, [indice])
   const comAnel = useMemo(() => {
     const out: number[] = []
-    indice.pendVencida.forEach((v, i) => v && out.push(i))
+    indice.prazoVencido.forEach((v, i) => v && out.push(i))
     return out
   }, [indice])
 
@@ -125,15 +129,18 @@ export function Ecossistema() {
       if (!mesh) continue
       porTipo[tipo].forEach((i, k) => {
         const a = data.ativos[i]
-        const ok = mascara[i] === 1 && (!analistaFoco || a.analistaId === analistaFoco) && (!projetoFoco || a.projetoId === projetoFoco)
+        const status = statusDoAtivo(indice, i)
+        const ok =
+          mascara[i] === 1 &&
+          (!analistaFoco || indice.vigente.get(a.id)?.analistaId === analistaFoco) &&
+          (!projetoFoco || a.projetoId === projetoFoco)
         visivel[i] = ok ? 1 : 0
-        const depreciado = a.qualificacao.status === 'depreciado'
-        let escala = depreciado ? 0.7 : 1
+        let escala = status === 'depreciado' ? 0.7 : 1
         if (!ok) {
           cor.set(COR.esmaecido)
           escala *= 0.72
         } else {
-          cor.set(COR_STATUS[a.qualificacao.status])
+          cor.set(COR_STATUS[status])
           if (a.id === hoverId) {
             cor.lerp(branco, 0.3)
             escala *= 1.22
@@ -141,7 +148,8 @@ export function Ecossistema() {
           if (a.id === selId) escala *= 1.35
         }
         p.set(layout.pos[i * 2], PLACA_H, layout.pos[i * 2 + 1])
-        s.setScalar(escala)
+        // A altura codifica a maturidade da qualificação vigente.
+        s.set(escala, escala * (ok ? alturaMaturidade(indice.maturidade[i]) : 0.8), escala)
         mesh.setMatrixAt(k, m.compose(p, q, s))
         mesh.setColorAt(k, cor)
       })
@@ -154,7 +162,7 @@ export function Ecossistema() {
     if (mk) {
       comMarcador.forEach((i, k) => {
         const ok = visivel[i] === 1
-        p.set(layout.pos[i * 2], PLACA_H + ALTURA_MARCADOR, layout.pos[i * 2 + 1])
+        p.set(layout.pos[i * 2], PLACA_H + ALTURA_MARCADOR * 0.55 + alturaMaturidade(indice.maturidade[i]) * 0.75, layout.pos[i * 2 + 1])
         s.setScalar(ok ? 1 + Math.min(indice.abertas[i], 6) * 0.08 : 0.0001)
         mk.setMatrixAt(k, m.compose(p, q, s))
         const sev = indice.piorSeveridade[i]

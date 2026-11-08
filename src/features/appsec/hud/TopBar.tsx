@@ -7,6 +7,7 @@ import { num } from './format'
 
 const GRUPO: Record<ResultadoBusca['tipo'], string> = {
   ativo: 'Ativo',
+  qualificacao: 'Qualificação',
   projeto: 'Projeto',
   vulnerabilidade: 'Vulnerabilidade',
   analista: 'Analista',
@@ -77,7 +78,7 @@ function Busca() {
         aria-autocomplete="list"
         aria-activedescendant={mostrar && resultados[ativo] ? `${listaId}-${ativo}` : undefined}
         aria-label="Buscar ativos, projetos, vulnerabilidades e analistas"
-        placeholder="Buscar ativo, projeto, vulnerabilidade ou analista…"
+        placeholder="Buscar ativo, projeto, qualificação (QLF-…), vulnerabilidade ou analista…"
         value={termo}
         onChange={(e) => {
           setTermo(e.target.value)

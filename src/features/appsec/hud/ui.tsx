@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import { SEVERIDADE_LABEL, STATUS_LABEL, STATUS_PENDENCIA_LABEL, STATUS_VULN_LABEL, TIPO_LABEL } from '../data/catalogo'
-import type { Severidade, StatusPendencia, StatusQualificacao, StatusVulnerabilidade, TipoAtivo } from '../data/types'
+import { MATURIDADE_LABEL, SEVERIDADE_LABEL, STATUS_LABEL, STATUS_PENDENCIA_LABEL, STATUS_VULN_LABEL, TIPO_LABEL } from '../data/catalogo'
+import type { Maturidade, Severidade, StatusPendencia, StatusQualificacao, StatusVulnerabilidade, TipoAtivo } from '../data/types'
 
 /** Ícone com a mesma forma usada na cena 3D para cada tipo de ativo. */
 export function IconeTipo({ tipo, tamanho = 14 }: { tipo: TipoAtivo; tamanho?: number }) {
@@ -89,8 +89,20 @@ export const STATUS_PARTES = (contagem: Record<StatusQualificacao, number>) =>
     titulo: STATUS_LABEL[s],
   }))
 
-export function contarStatus(lista: { qualificacao: { status: StatusQualificacao } }[]): Record<StatusQualificacao, number> {
-  const out = { aprovado: 0, rascunho: 0, reprovado: 0, depreciado: 0 }
-  for (const a of lista) out[a.qualificacao.status]++
-  return out
+/** Maturidade como 5 degraus crescentes (mesma ideia da altura no mapa). */
+export function NivelMaturidade({ nivel, comRotulo = true }: { nivel: Maturidade; comRotulo?: boolean }) {
+  return (
+    <span className="aps-mat" role="img" aria-label={`Maturidade ${nivel} de 5: ${MATURIDADE_LABEL[nivel]}`}>
+      <span className="aps-mat-degraus" aria-hidden>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <i key={n} className={n <= nivel ? 'is-on' : undefined} style={{ height: `${4 + n * 2.4}px` }} />
+        ))}
+      </span>
+      {comRotulo && (
+        <span className="aps-mat-txt">
+          {nivel} · {MATURIDADE_LABEL[nivel]}
+        </span>
+      )}
+    </span>
+  )
 }

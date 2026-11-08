@@ -423,6 +423,96 @@
 .aps-resp-neutro { background: rgb(20 26 34 / 0.07); color: var(--tinta-2); }
 .aps-resp-vazia { border: 1.5px dashed rgb(20 26 34 / 0.25); color: var(--tinta-2); }
 
+/* Maturidade: 5 degraus crescentes (a mesma ideia da altura no mapa) */
+.aps-mat { display: inline-flex; align-items: flex-end; gap: 7px; }
+.aps-mat-degraus { display: inline-flex; align-items: flex-end; gap: 2px; height: 16px; }
+.aps-mat-degraus i { display: block; width: 4px; border-radius: 1px; background: rgb(20 26 34 / 0.14); }
+.aps-mat-degraus i.is-on { background: var(--tinta); }
+.aps-mat-txt { font-size: 13px; font-weight: 500; line-height: 1; }
+.aps-chips-mat { flex-wrap: nowrap; gap: 4px; }
+.aps-chips-mat .aps-chip { flex: 1; justify-content: center; gap: 4px; padding: 3px 4px; }
+.aps-chip.is-on .aps-mat-degraus i { background: rgb(255 255 255 / 0.3); }
+.aps-chip.is-on .aps-mat-degraus i.is-on { background: #fff; }
+
+.aps-aviso-info { background: rgb(39 71 201 / 0.07); border-color: var(--foco); color: var(--tinta); }
+.aps-qresumo { display: grid; gap: 4px; }
+.aps-tooltip-alerta { color: #ffd966 !important; font-weight: 600; }
+
+/* Abas internas da qualificação */
+.aps-qtabs { display: grid; gap: 10px; }
+.aps-qtablist { display: flex; flex-wrap: wrap; gap: 2px 0; border-bottom: 1px solid var(--linha); margin: 0 -4px; padding: 0 4px; }
+.aps-qtablist [role='tab'] {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px 7px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tinta-2);
+  white-space: nowrap;
+}
+.aps-qtablist [role='tab'].is-ativa { color: var(--tinta); border-bottom-color: var(--tinta); }
+.aps-qtab-n { font-size: 10.5px; padding: 0 5px; border-radius: 5px; background: rgb(20 26 34 / 0.07); }
+.aps-qtab-n.is-alerta { background: rgb(242 183 5 / 0.3); color: #6b5100; }
+.aps-qtabpanel { min-width: 0; }
+
+/* Documentos */
+.aps-docs { display: grid; gap: 10px; }
+.aps-docs-faltando,
+.aps-docs-lista { display: grid; gap: 6px; }
+.aps-docs-faltando li,
+.aps-docs-lista li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: center; font-size: 13px; }
+.aps-docs-faltando li { padding: 6px 8px; border: 1.5px dashed rgb(242 183 5 / 0.8); border-radius: 8px; background: rgb(242 183 5 / 0.07); }
+.aps-doc-icone {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 40px;
+  border-radius: 4px 9px 4px 4px;
+  font-family: var(--f-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--tinta-2);
+}
+.aps-doc-icone.is-faltando { background: transparent; border: 1.5px dashed #b38a00; height: 34px; }
+.aps-doc-pdf { background: #b3261e; }
+.aps-doc-json { background: #3d4f6e; }
+.aps-doc-png { background: #2e7d6a; }
+.aps-doc-xlsx { background: #1f7a43; }
+.aps-doc-docx { background: #2b5bb8; }
+.aps-doc-txt { display: grid; min-width: 0; line-height: 1.3; }
+.aps-doc-cat { font-weight: 600; }
+.aps-doc-nome { font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Histórico de qualificações */
+.aps-hist { display: grid; gap: 2px; padding: 0; margin: 0; list-style: none; }
+.aps-hist li { position: relative; padding-left: 14px; }
+.aps-hist li::before { content: ''; position: absolute; left: 4px; top: 0; bottom: 0; width: 2px; background: var(--linha); }
+.aps-hist li::after { content: ''; position: absolute; left: 1px; top: 15px; width: 8px; height: 8px; border-radius: 50%; background: #c3cad3; }
+.aps-hist li.is-atual::after { background: var(--tinta); box-shadow: 0 0 0 3px rgb(20 26 34 / 0.12); }
+.aps-hist .aps-ir {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: 2px 10px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 8px;
+  color: var(--tinta);
+  font-weight: 500;
+  text-decoration: none;
+}
+.aps-hist .aps-ir:hover { background: rgb(20 26 34 / 0.05); }
+.aps-hist li.is-atual .aps-ir { background: rgb(20 26 34 / 0.05); }
+.aps-hist-data { font-size: 12px; color: var(--tinta-2); }
+.aps-hist-cod { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aps-hist-vigente { grid-column: 2 / -1; font-size: 11px; font-weight: 600; color: var(--tinta-2); }
+
 /* ---------- Tabela com abas (virtualizada) ---------- */
 .aps-tabs { display: flex; flex-direction: column; min-height: 0; height: 268px; align-self: end; overflow: hidden; }
 .aps-tablist { display: flex; gap: 2px; padding: 6px 6px 0; border-bottom: 1px solid var(--linha); overflow-x: auto; scrollbar-width: none; }
@@ -470,7 +560,7 @@
 .aps-tabela tbody tr.is-sel { background: rgb(20 26 34 / 0.07); }
 .aps-tabela tbody tr.is-sel th { box-shadow: inset 3px 0 0 var(--tinta); }
 .aps-tabela .aps-num { text-align: right; width: 92px; }
-.aps-tabela .aps-col-longa { width: 44%; }
+.aps-tabela .aps-col-longa { width: 38%; }
 .aps-linha-btn { border: 0; background: none; padding: 2px 4px; margin-left: -4px; font-weight: 500; }
 .aps-cel-ativo { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; }
 .aps-cel-ativo .aps-mono { overflow: hidden; text-overflow: ellipsis; }
