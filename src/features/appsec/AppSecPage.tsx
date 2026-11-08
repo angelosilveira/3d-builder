@@ -10,6 +10,7 @@ import { ControlesCamera } from './hud/ControlesCamera'
 import { DataTabs } from './hud/DataTabs'
 import { DetailCard } from './hud/DetailCard'
 import { Filtros } from './hud/Filtros'
+import { Flutuantes, Toasts } from './hud/Gamificacao'
 import { KpiRow } from './hud/KpiRow'
 import { Rotulos } from './hud/Rotulos'
 import { Tooltip } from './hud/Tooltip'
@@ -34,6 +35,7 @@ export default function AppSecPage() {
           </Suspense>
         </SceneErrorBoundary>
         <Rotulos />
+        <Flutuantes />
         <ControlesCamera />
       </main>
       <div className="aps-hud">
@@ -43,6 +45,7 @@ export default function AppSecPage() {
         <DataTabs />
       </div>
       <Tooltip />
+      <Toasts />
     </div>
   )
 }

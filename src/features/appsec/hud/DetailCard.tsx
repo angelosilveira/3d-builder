@@ -26,7 +26,10 @@ import {
 } from '../data/derived'
 import { useAppSecData } from '../data/store'
 import type { Ativo, Qualificacao, Resposta, Selecao, Vulnerabilidade } from '../data/types'
+import { nivelDe, pontuacao } from '../data/gamificacao'
+import { useAcaoGamificada } from '../state/useAcaoGamificada'
 import { useAppSecUi } from '../state/uiStore'
+import { ComposicaoPostura, Conquistas, ListaMissoes, RankingAreas } from './Gamificacao'
 import { data as fmtData, num, num1, pct, textoPrazo } from './format'
 import {
   BarraEmpilhada,
@@ -253,6 +256,10 @@ function CardQualificacao({ ativo, q }: { ativo: Ativo; q: Qualificacao }) {
   )
   const historico = indice.historico.get(ativo.id) ?? [q]
   const vencida = qualificacaoVencida(q, agora)
+  const acao = useAcaoGamificada()
+  const concluirPendencia = useAppSecData((s) => s.concluirPendencia)
+  const enviarDocumento = useAppSecData((s) => s.enviarDocumento)
+  const editavel = q.vigente && q.status !== 'depreciado'
   const requalificar = q.vigente && requalificacaoVencida(q, agora)
 
   return (
@@ -327,12 +334,22 @@ function CardQualificacao({ ativo, q }: { ativo: Ativo; q: Qualificacao }) {
             ) : (
               <ul className="aps-lista">
                 {pend.map((p) => (
-                  <li key={p.id}>
+                  <li key={p.id} className={editavel && p.status === 'aberta' ? 'aps-com-acao' : undefined}>
                     <Ir sel={{ tipo: 'pendencia', id: p.id }}>
                       <span className="aps-lista-nome">{p.descricao}</span>
                       <span className="aps-lista-extra">{fmtData(p.prazo)}</span>
                       <PilulaPendencia status={p.status} vencida={pendenciaVencida(p, agora)} />
                     </Ir>
+                    {editavel && p.status === 'aberta' && (
+                      <button
+                        type="button"
+                        className="aps-btn-acao"
+                        onClick={() => acao(() => concluirPendencia(p.id), ativo.id, `Pendência ${p.codigo} concluída`)}
+                        aria-label={`Concluir pendência: ${p.descricao}`}
+                      >
+                        Concluir
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -348,6 +365,16 @@ function CardQualificacao({ ativo, q }: { ativo: Ativo; q: Qualificacao }) {
                         <strong>{CATEGORIA_DOC_LABEL[c]}</strong>
                         <span className="aps-muted"> · obrigatório, ainda não enviado</span>
                       </span>
+                      {editavel && (
+                        <button
+                          type="button"
+                          className="aps-btn-acao"
+                          onClick={() => acao(() => enviarDocumento(q.id, c), ativo.id, `${CATEGORIA_DOC_LABEL[c]} enviado`)}
+                          aria-label={`Enviar ${CATEGORIA_DOC_LABEL[c]}`}
+                        >
+                          Enviar
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -411,6 +438,9 @@ function CardQualificacao({ ativo, q }: { ativo: Ativo; q: Qualificacao }) {
           ),
         }}
       />
+      {editavel && (pendAbertas > 0 || faltando.length > 0) && (
+        <p className="aps-muted aps-pequeno aps-nota-sim">Ações de concluir e enviar são simuladas neste protótipo e não são salvas.</p>
+      )}
     </>
   )
 }
@@ -430,6 +460,10 @@ function CardProjeto({ id }: { id: string }) {
   const vigentes = ativos.map((a) => indice.vigente.get(a.id)!).filter(Boolean)
   const vencidas = vigentes.filter((q) => qualificacaoVencida(q, indice.agora)).length
   const semDocs = vigentes.filter((q) => documentosFaltando(q, indice.docsPorQual.get(q.id) ?? []).length > 0).length
+  const postura = useMemo(() => {
+    const total = pontuacao(data, indice, ativos).total
+    return { total, nivel: nivelDe(total).atual }
+  }, [data, indice, ativos])
   const proximas = vigentes
     .filter((q) => q.status === 'rascunho' || q.status === 'reprovado')
     .sort((a, b) => a.prazo.localeCompare(b.prazo))
@@ -437,7 +471,16 @@ function CardProjeto({ id }: { id: string }) {
 
   return (
     <>
-      <Cabecalho eyebrow={`Projeto · ${area.nome}`} titulo={projeto.nome} codigo={projeto.codigo} />
+      <Cabecalho
+        eyebrow={`Projeto · ${area.nome}`}
+        titulo={projeto.nome}
+        codigo={projeto.codigo}
+        selo={
+          <span className="aps-selo-pts" title="Pontuação de postura do projeto">
+            <b className="aps-mono">{num(postura.total)}</b> pts · {postura.nivel.nome}
+          </span>
+        }
+      />
       <dl className="aps-campos">
         <Campo rotulo="Squad">{projeto.squad}</Campo>
         <Campo rotulo="Analista líder">
@@ -485,6 +528,9 @@ function CardProjeto({ id }: { id: string }) {
           </ul>
         </Secao>
       )}
+      <Secao titulo="Conquistas">
+        <Conquistas ativos={ativos} />
+      </Secao>
       <Secao titulo="Vulnerabilidades abertas">
         <ContagemSeveridade vulns={vulns} />
       </Secao>
@@ -633,17 +679,6 @@ function CardAnalista({ id }: { id: string }) {
 function CardVisaoGeral() {
   const data = useAppSecData((s) => s.data)
   const indice = useAppSecData((s) => s.indice)
-  const comandar = useAppSecUi((s) => s.comandar)
-  const layout = useAppSecData((s) => s.layout)
-  const porArea = useMemo(
-    () =>
-      data.areas.map((a) => {
-        const ativos = data.ativos.filter((x) => x.areaId === a.id)
-        const vencidos = ativos.filter((x) => indice.prazoVencido[indice.posAtivo.get(x.id)!]).length
-        return { area: a, status: contarStatus(indice, ativos), total: ativos.length, maturidade: maturidadeMedia(indice, ativos), vencidos }
-      }),
-    [data, indice],
-  )
   const carga = useMemo(
     () =>
       data.analistas
@@ -659,28 +694,14 @@ function CardVisaoGeral() {
   return (
     <>
       <Cabecalho eyebrow="Visão geral" titulo="Onde agir primeiro" />
-      <Secao titulo="Áreas" extra={<span className="aps-muted aps-pequeno">maturidade · prazos vencidos</span>}>
-        <ul className="aps-areas">
-          {porArea.map(({ area, status, total, maturidade, vencidos }) => {
-            const r = layout.areaPorId.get(area.id)!
-            return (
-              <li key={area.id}>
-                <button type="button" className="aps-area-btn" onClick={() => comandar('enquadrar', { x: r.x, z: r.z, w: r.w, d: r.d })}>
-                  <span className="aps-area-nome">
-                    {area.nome} <span className="aps-mono aps-muted">{num(total)}</span>
-                  </span>
-                  <span className="aps-mono aps-muted" title="Maturidade média">
-                    {num1(maturidade)}
-                  </span>
-                  <span className={`aps-mono aps-area-crit${vencidos ? ' is-ruim' : ''}`} title="Ativos com prazo vencido">
-                    {vencidos} venc.
-                  </span>
-                  <BarraEmpilhada partes={STATUS_PARTES(status)} rotulo={`Qualificações de ${area.nome} por status`} />
-                </button>
-              </li>
-            )
-          })}
-        </ul>
+      <Secao titulo="Postura de segurança">
+        <ComposicaoPostura />
+      </Secao>
+      <Secao titulo="Missões" extra={<span className="aps-muted aps-pequeno">maior alavanca agora</span>}>
+        <ListaMissoes />
+      </Secao>
+      <Secao titulo="Ranking das áreas" extra={<span className="aps-muted aps-pequeno">pontos de postura</span>}>
+        <RankingAreas />
       </Secao>
       <Secao titulo="Ativos com maior risco">
         <ListaAtivos ativos={data.ativos} limite={6} />

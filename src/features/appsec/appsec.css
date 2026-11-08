@@ -567,6 +567,242 @@
 .aps-vazio { padding: 18px; text-align: center; color: var(--tinta-2); }
 
 /* ==========================================================================
+   Gamificação: postura, missões, ranking, conquistas, ações e efeitos
+   ========================================================================== */
+.aps { --ouro: #d9a300; --prata: #8e99a6; --bronze: #b0703c; }
+
+/* Postura na barra superior */
+.aps-postura {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 12px 4px 6px;
+  border: 1px solid var(--linha);
+  border-radius: 11px;
+  background: linear-gradient(180deg, #fff, rgb(255 255 255 / 0.6));
+  text-align: left;
+  min-width: 210px;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+.aps-postura:hover { box-shadow: 0 4px 14px -6px rgb(20 26 34 / 0.3); transform: translateY(-1px); }
+.aps-postura-txt { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.aps-postura-linha { display: flex; align-items: baseline; gap: 7px; position: relative; }
+.aps-postura-pts { font-size: 20px; line-height: 1; font-variant-numeric: tabular-nums; }
+.aps-postura-nivel { font-size: 12.5px; font-weight: 600; letter-spacing: 0.02em; }
+.aps-postura-barra { height: 5px; border-radius: 3px; background: rgb(20 26 34 / 0.08); overflow: hidden; }
+.aps-postura-barra i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--aprovado), #7cd3a8); transition: width 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); position: relative; }
+.aps-postura-barra i::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.7), transparent); translate: -100% 0; animation: aps-brilho 2.8s ease-in-out infinite; }
+.aps-postura-prox { font-size: 11px; color: var(--tinta-2); white-space: nowrap; }
+.aps-postura-delta {
+  position: absolute;
+  right: 0;
+  top: -2px;
+  font: 600 12px var(--f-mono);
+  color: var(--aprovado-tinta);
+  animation: aps-delta 2.4s ease-out forwards;
+}
+.aps-postura-delta.is-neg { color: var(--reprovado-tinta); }
+.aps-postura.is-subiu { animation: aps-subiu 1.2s ease-out 2; }
+.aps-selo { flex: none; filter: drop-shadow(0 2px 3px rgb(20 26 34 / 0.18)); }
+.aps-selo-fundo { fill: var(--tinta); }
+.aps-selo-5 .aps-selo-fundo { fill: var(--ouro); }
+.aps-selo rect.is-on { fill: #7cd3a8; }
+.aps-selo-5 rect.is-on { fill: #fff3c4; }
+.aps-selo rect.is-off { fill: rgb(255 255 255 / 0.18); }
+
+@keyframes aps-brilho { 60%, 100% { translate: 100% 0; } }
+@keyframes aps-delta {
+  0% { opacity: 0; transform: translateY(6px) scale(0.8); }
+  15% { opacity: 1; transform: translateY(-4px) scale(1.15); }
+  70% { opacity: 1; transform: translateY(-8px) scale(1); }
+  100% { opacity: 0; transform: translateY(-14px); }
+}
+@keyframes aps-subiu {
+  0% { box-shadow: 0 0 0 0 rgb(217 163 0 / 0.6); }
+  100% { box-shadow: 0 0 0 14px rgb(217 163 0 / 0); }
+}
+
+/* Composição da pontuação */
+.aps-composicao { display: grid; gap: 8px; }
+.aps-composicao-total b { font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; }
+.aps-composicao ul { display: grid; gap: 5px; }
+.aps-composicao li { display: grid; grid-template-columns: 9.5em minmax(0, 1fr) 4.6em; gap: 8px; align-items: center; font-size: 12.5px; }
+.aps-composicao li .aps-mono { text-align: right; font-size: 12px; }
+.aps-composicao-barra { height: 6px; border-radius: 3px; background: rgb(20 26 34 / 0.07); overflow: hidden; }
+.aps-composicao-barra i { display: block; height: 100%; border-radius: inherit; background: var(--tinta); transform-origin: left; animation: aps-cresce 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes aps-cresce { from { transform: scaleX(0); } }
+
+/* Missões */
+.aps-missoes { display: grid; gap: 8px; }
+.aps-missao {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid var(--linha);
+  box-shadow: 0 2px 8px -4px rgb(20 26 34 / 0.18);
+  animation: aps-missao 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes aps-missao { from { opacity: 0; transform: translateX(14px); } }
+.aps-missao-icone { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; background: rgb(242 183 5 / 0.18); color: #6b5100; font-size: 15px; }
+.aps-missao-txt { display: grid; gap: 3px; min-width: 0; }
+.aps-missao-txt strong { font-size: 13px; line-height: 1.25; }
+.aps-missao-prog { height: 5px; border-radius: 3px; background: rgb(20 26 34 / 0.07); overflow: hidden; margin-top: 2px; }
+.aps-missao-prog i { display: block; height: 100%; background: var(--pendencia); border-radius: inherit; }
+.aps-missao-acao { display: grid; justify-items: end; gap: 5px; }
+.aps-recompensa { font: 600 11.5px var(--f-mono); color: var(--aprovado-tinta); background: rgb(46 158 106 / 0.12); padding: 1px 6px; border-radius: 5px; white-space: nowrap; }
+.aps-btn-ir,
+.aps-btn-acao {
+  border: 0;
+  border-radius: 7px;
+  padding: 4px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: var(--tinta);
+  color: #fff !important;
+  transition: transform 0.15s, background 0.15s;
+}
+.aps-btn-ir:hover,
+.aps-btn-acao:hover { background: var(--foco); transform: translateY(-1px); }
+.aps-btn-ir:active,
+.aps-btn-acao:active { transform: scale(0.94); }
+.aps-btn-acao { padding: 3px 10px; font-size: 12px; background: var(--aprovado-tinta); white-space: nowrap; }
+
+/* Ranking */
+.aps-ranking { display: grid; gap: 2px; }
+.aps-ranking-btn {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  gap: 3px 10px;
+  align-items: center;
+  padding: 6px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+}
+.aps-ranking-btn:hover { background: rgb(20 26 34 / 0.05); }
+.aps-ranking-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.aps-ranking-barra { grid-column: 2 / -1; height: 4px; border-radius: 2px; background: rgb(20 26 34 / 0.06); overflow: hidden; }
+.aps-ranking-barra i { display: block; height: 100%; border-radius: inherit; background: var(--aprovado); transform-origin: left; animation: aps-cresce 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.aps-medalha {
+  grid-row: span 2;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font: 700 11px var(--f-mono);
+  color: var(--tinta-2);
+  background: rgb(20 26 34 / 0.06);
+}
+.aps-medalha-1,
+.aps-medalha-2,
+.aps-medalha-3 { color: #fff; box-shadow: 0 0 0 2px rgb(255 255 255 / 0.9) inset, 0 2px 5px -1px rgb(20 26 34 / 0.35); }
+.aps-medalha-1 { background: radial-gradient(circle at 35% 30%, #ffe58a, var(--ouro)); color: #5a4300; }
+.aps-medalha-2 { background: radial-gradient(circle at 35% 30%, #e4e9ee, var(--prata)); }
+.aps-medalha-3 { background: radial-gradient(circle at 35% 30%, #e8b48a, var(--bronze)); }
+
+/* Conquistas */
+.aps-conquistas-resumo { margin-bottom: 6px; }
+.aps-conquistas { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.aps-conquistas li {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 8px 2px 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.15;
+  color: var(--tinta-2);
+  background: rgb(20 26 34 / 0.04);
+  border: 1px dashed rgb(20 26 34 / 0.16);
+  opacity: 0.7;
+}
+.aps-conquistas li.is-obtida {
+  color: #5a4300;
+  opacity: 1;
+  border: 1px solid rgb(217 163 0 / 0.5);
+  background: linear-gradient(160deg, #fff6d6, #ffe7a0);
+  box-shadow: 0 3px 10px -5px rgb(217 163 0 / 0.8);
+  animation: aps-conquista 0.6s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+.aps-conquistas li.is-obtida svg { color: var(--ouro); }
+@keyframes aps-conquista { from { transform: scale(0.6) rotate(-8deg); opacity: 0; } }
+.aps-selo-pts { font-size: 12px; font-weight: 600; white-space: nowrap; padding: 2px 8px; border-radius: 999px; background: rgb(46 158 106 / 0.12); color: var(--aprovado-tinta); }
+
+/* Ações no card */
+.aps-lista li.aps-com-acao { display: flex; align-items: center; gap: 6px; }
+.aps-lista li.aps-com-acao .aps-ir { flex: 1; min-width: 0; }
+.aps-docs-faltando li:has(.aps-btn-acao) { grid-template-columns: 34px minmax(0, 1fr) auto; }
+.aps-nota-sim { font-style: italic; }
+
+/* "+N pts" flutuando sobre o ativo */
+.aps-flutuantes { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 6; }
+.aps-flutuante { position: absolute; left: 0; top: 0; will-change: transform; }
+.aps-flutuante span {
+  display: block;
+  translate: -50% -100%;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font: 700 14px var(--f-mono);
+  color: #fff;
+  background: var(--aprovado);
+  box-shadow: 0 6px 16px -6px rgb(31 117 80 / 0.8);
+  white-space: nowrap;
+  animation: aps-flutua 1.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+@keyframes aps-flutua {
+  0% { opacity: 0; transform: translateY(10px) scale(0.6); }
+  14% { opacity: 1; transform: translateY(-6px) scale(1.12); }
+  26% { transform: translateY(-10px) scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-56px) scale(0.95); }
+}
+
+/* Toasts */
+.aps-toasts { position: absolute; z-index: 50; left: 50%; bottom: 300px; translate: -50% 0; pointer-events: none; width: min(440px, calc(100% - 24px)); }
+.aps-toasts ul { display: grid; gap: 8px; justify-items: center; }
+.aps-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 8px 9px 12px;
+  border-radius: 12px;
+  background: var(--tinta);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 14px 30px -12px rgb(20 26 34 / 0.6);
+  animation: aps-toast 0.4s cubic-bezier(0.2, 1.3, 0.4, 1) both;
+}
+@keyframes aps-toast { from { opacity: 0; transform: translateY(18px) scale(0.9); } }
+.aps-toast-icone { width: 22px; height: 22px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--aprovado); font-size: 12px; font-weight: 700; }
+.aps-toast-conquista { background: linear-gradient(120deg, #3b2f00, #6b5100); }
+.aps-toast-conquista .aps-toast-icone { background: var(--ouro); color: #3b2f00; }
+.aps-toast-nivel { background: linear-gradient(120deg, #1f4fd8, #2e9e6a); font-size: 14px; font-weight: 600; }
+.aps-toast-nivel .aps-toast-icone { background: #fff; color: var(--aprovado-tinta); }
+.aps-toast-fechar { border: 0; background: none; color: rgb(255 255 255 / 0.7) !important; font-size: 18px; line-height: 1; padding: 0 4px; }
+.aps-toast-fechar:hover { color: #fff !important; }
+
+@media (max-width: 1300px) {
+  .aps-postura { min-width: 0; }
+  .aps-postura-prox { display: none; }
+}
+@media (max-width: 900px) {
+  .aps-postura { order: 2; margin-left: auto; padding: 3px 8px 3px 4px; }
+  .aps-postura-txt { min-width: 92px; }
+  .aps-toasts { position: fixed; bottom: 72px; }
+}
+
+/* ==========================================================================
    Telas médias
    ========================================================================== */
 @media (max-width: 1300px) {

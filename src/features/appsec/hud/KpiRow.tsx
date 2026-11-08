@@ -4,6 +4,7 @@ import { useAppSecData } from '../data/store'
 import { useAppSecUi } from '../state/uiStore'
 import { useMascara } from '../state/useMascara'
 import { num, num1, pct } from './format'
+import { NumeroAnimado } from './Gamificacao'
 
 function Kpi({ rotulo, valor, nota, tom }: { rotulo: string; valor: ReactNode; nota: ReactNode; tom?: 'ruim' | 'alerta' | 'ok' }) {
   return (
@@ -25,11 +26,11 @@ export function KpiRow() {
 
   return (
     <ul className="aps-kpis" aria-label={filtrado ? 'Indicadores dos ativos filtrados' : 'Indicadores de todos os ativos'}>
-      <Kpi rotulo="Aprovados" valor={pct(k.aprovadosPct)} nota={`dos ${num(k.ativos)} ativos${filtrado ? ' no filtro' : ''} · ${num(k.requalificacaoVencida)} a requalificar`} tom="ok" />
-      <Kpi rotulo="Maturidade média" valor={num1(k.maturidadeMedia)} nota={`de 5 · ${num(k.rascunhos)} em rascunho`} />
-      <Kpi rotulo="Prazos vencidos" valor={num(k.qualificacoesVencidas)} nota={`qualificações · ${num(k.pendenciasVencidas)} pendências vencidas`} tom="alerta" />
-      <Kpi rotulo="Documentos faltando" valor={num(k.documentosFaltando)} nota="qualificações sem os obrigatórios" tom="alerta" />
-      <Kpi rotulo="Críticas abertas" valor={num(k.criticasAbertas)} nota={`+${num(k.criticasNovasSemana)} em 7 dias · ${num(k.vulnsVencidas)} fora do SLA`} tom="ruim" />
+      <Kpi rotulo="Aprovados" valor={<NumeroAnimado valor={k.aprovadosPct} formatar={pct} />} nota={`dos ${num(k.ativos)} ativos${filtrado ? ' no filtro' : ''} · ${num(k.requalificacaoVencida)} a requalificar`} tom="ok" />
+      <Kpi rotulo="Maturidade média" valor={<NumeroAnimado valor={k.maturidadeMedia} formatar={num1} />} nota={`de 5 · ${num(k.rascunhos)} em rascunho`} />
+      <Kpi rotulo="Prazos vencidos" valor={<NumeroAnimado valor={k.qualificacoesVencidas} />} nota={`qualificações · ${num(k.pendenciasVencidas)} pendências vencidas`} tom="alerta" />
+      <Kpi rotulo="Documentos faltando" valor={<NumeroAnimado valor={k.documentosFaltando} />} nota="qualificações sem os obrigatórios" tom="alerta" />
+      <Kpi rotulo="Críticas abertas" valor={<NumeroAnimado valor={k.criticasAbertas} />} nota={`+${num(k.criticasNovasSemana)} em 7 dias · ${num(k.vulnsVencidas)} fora do SLA`} tom="ruim" />
     </ul>
   )
 }

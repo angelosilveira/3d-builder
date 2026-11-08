@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { buscar, type ResultadoBusca } from '../data/derived'
 import { useAppSecData } from '../data/store'
 import { useAppSecUi } from '../state/uiStore'
-import { num } from './format'
+import { PainelPostura } from './Gamificacao'
 
 const GRUPO: Record<ResultadoBusca['tipo'], string> = {
   ativo: 'Ativo',
@@ -122,7 +122,6 @@ function Busca() {
 }
 
 export function TopBar() {
-  const data = useAppSecData((s) => s.data)
   return (
     <header className="aps-topbar aps-panel">
       <Link to="/" className="aps-voltar" aria-label="Voltar para o sistema">
@@ -135,11 +134,7 @@ export function TopBar() {
         </span>
       </Link>
       <Busca />
-      <p className="aps-escopo">
-        <span>{num(data.ativos.length)} ativos</span>
-        <span>{data.projetos.length} projetos</span>
-        <span>{data.areas.length} áreas</span>
-      </p>
+      <PainelPostura />
       <div className="aps-usuario">
         <span className="aps-avatar" aria-hidden>
           LC

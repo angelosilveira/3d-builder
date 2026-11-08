@@ -4,6 +4,8 @@ import * as THREE from 'three'
 import { useAppSecUi } from '../state/uiStore'
 import { CameraRig } from './CameraRig'
 import { Ecossistema } from './Ecossistema'
+import { Explosoes } from './Explosoes'
+import { Farol } from './Farol'
 import { COR } from './palette'
 import { Projetor } from './Projetor'
 
@@ -48,6 +50,8 @@ export default function AppSecScene() {
       <CameraRig />
       <Suspense fallback={null}>
         <Ecossistema />
+        <Farol />
+        <Explosoes />
       </Suspense>
       <Projetor />
       <Cursor />

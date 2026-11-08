@@ -120,20 +120,38 @@ export function CameraRig() {
   const visaoGeral = useCallback(
     (transicao: boolean) => {
       const c = ref.current
-      if (!c) return
+      if (!c) return 0
       const x = RAIO * Math.sin(POLAR) * Math.sin(AZIMUTE)
       const y = RAIO * Math.cos(POLAR)
       const z = RAIO * Math.sin(POLAR) * Math.cos(AZIMUTE)
       void c.setLookAt(x, y, z, 0, 0, 0, transicao)
       const pr = projecao({ x: 0, z: 0, w: layout.largura, d: layout.profundidade }, AZIMUTE, POLAR)
-      void c.zoomTo(Math.min(60, Math.max(1.5, Math.min(livre.w / pr.w, (livre.h - 40) / pr.h) * 0.92)), transicao)
+      const zoom = Math.min(60, Math.max(1.5, Math.min(livre.w / pr.w, (livre.h - 40) / pr.h) * 0.92))
+      void c.zoomTo(zoom, transicao)
+      return zoom
     },
     [layout, livre.w, livre.h],
   )
 
+  // Abertura: começa afastada e girada e "pousa" na visão geral (só na montagem).
+  const abriu = useRef(false)
   useEffect(() => {
-    visaoGeral(false)
-  }, [visaoGeral])
+    const c = ref.current
+    if (abriu.current || !c || reduced) {
+      visaoGeral(false)
+      abriu.current = true
+      return
+    }
+    abriu.current = true
+    const zoomFinal = visaoGeral(false)
+    void c.rotate(-0.9, -0.35, false)
+    void c.zoomTo(zoomFinal * 0.4, false)
+    const id = window.setTimeout(() => {
+      void c.rotate(0.9, 0.35, true)
+      void c.zoomTo(zoomFinal, true)
+    }, 120)
+    return () => window.clearTimeout(id)
+  }, [visaoGeral, reduced])
 
   const ultimo = useRef(0)
   useEffect(() => {
