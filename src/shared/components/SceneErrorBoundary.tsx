@@ -2,6 +2,8 @@ import { Component, type ErrorInfo, type ReactNode } from 'react'
 
 interface Props {
   children: ReactNode
+  /** Prefixo das classes CSS da tela que usa o componente (ex.: "cnt", "aps"). */
+  prefixo?: string
 }
 interface State {
   erro: Error | null
@@ -16,19 +18,20 @@ export class SceneErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(erro: Error, info: ErrorInfo) {
-    console.error('Falha na vista 3D do canteiro', erro, info.componentStack)
+    console.error('Falha na vista 3D', erro, info.componentStack)
   }
 
   render() {
     if (!this.state.erro) return this.props.children
+    const p = this.props.prefixo ?? 'cnt'
     return (
-      <div className="cnt-scene-fallback" role="alert">
-        <p className="cnt-scene-fallback-titulo">Não foi possível carregar a vista 3D do canteiro.</p>
+      <div className={`${p}-scene-fallback`} role="alert">
+        <p className={`${p}-scene-fallback-titulo`}>Não foi possível carregar a vista 3D.</p>
         <p>
-          Os painéis, a tabela e os alertas continuam atualizando ao vivo. Se o navegador estiver com aceleração gráfica
-          desativada, ative-a e tente de novo.
+          Os painéis e as listas continuam funcionando. Se o navegador estiver com aceleração gráfica desativada, ative-a
+          e tente de novo.
         </p>
-        <button type="button" className="cnt-btn" onClick={() => this.setState({ erro: null })}>
+        <button type="button" className={`${p}-btn`} onClick={() => this.setState({ erro: null })}>
           Tentar carregar a vista 3D
         </button>
       </div>

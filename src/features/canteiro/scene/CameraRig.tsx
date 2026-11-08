@@ -1,4 +1,4 @@
-import { CameraControls, OrthographicCamera } from '@react-three/drei'
+import { CameraControls } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
 import { useCallback, useEffect, useRef } from 'react'
 import type CameraControlsImpl from 'camera-controls'
@@ -30,8 +30,8 @@ export function CameraRig() {
   useEffect(() => {
     const desktop = size.width > 820
     const dx = desktop ? Math.min(220, size.width * 0.15) : 0
-    // Negativo desce o conteúdo: o topo do prédio sai de baixo dos KPIs.
-    const dy = desktop ? -Math.min(56, size.height * 0.06) : 0
+    // Positivo sobe o conteúdo: tira o prédio de trás da tabela e do cronograma.
+    const dy = desktop ? Math.min(90, size.height * 0.1) : 0
     camera.setViewOffset(size.width, size.height, dx, dy, size.width, size.height)
     camera.updateProjectionMatrix()
     return () => {
@@ -98,8 +98,9 @@ export function CameraRig() {
   }, [selecionadoId, suave, zoomInicial])
 
   return (
+    // Câmera ortográfica criada pelo <Canvas orthographic> (ver CanteiroScene):
+    // os controles já nascem ligados a ela.
     <>
-      <OrthographicCamera makeDefault position={[80, 90, 80]} zoom={zoomInicial} near={-400} far={1200} />
       <CameraControls
         ref={ref}
         makeDefault

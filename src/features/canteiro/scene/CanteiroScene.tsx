@@ -63,6 +63,8 @@ export default function CanteiroScene() {
   const limpar = useCallback(() => selecionar(null), [selecionar])
   return (
     <Canvas
+      orthographic
+      camera={{ position: [80, 90, 80], zoom: 10, near: -400, far: 1200 }}
       shadows={{ type: THREE.PCFSoftShadowMap }}
       dpr={[1, 2]}
       gl={{ antialias: true, preserveDrawingBuffer: false }}

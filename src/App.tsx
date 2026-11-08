@@ -6,6 +6,7 @@ import { Dashboard } from './pages/Dashboard'
 const ProjectPage = lazy(() => import('./pages/ProjectPage'))
 const NewProjectWizard = lazy(() => import('./pages/NewProjectWizard'))
 const CanteiroPage = lazy(() => import('./features/canteiro/CanteiroPage'))
+const AppSecPage = lazy(() => import('./features/appsec/AppSecPage'))
 
 function Shell() {
   return (
@@ -21,6 +22,7 @@ function Shell() {
           </NavLink>
           <NavLink to="/obras/nova">Nova obra</NavLink>
           <NavLink to="/canteiro">Canteiro ao vivo</NavLink>
+          <NavLink to="/appsec">AppSec</NavLink>
         </nav>
       </header>
       <main className="content">
@@ -42,6 +44,15 @@ export function App() {
           element={
             <Suspense fallback={<div className="loading">Carregando canteiro…</div>}>
               <CanteiroPage />
+            </Suspense>
+          }
+        />
+        {/* Mapa 3D de qualificação de AppSec: tela cheia, com HUD próprio. */}
+        <Route
+          path="/appsec"
+          element={
+            <Suspense fallback={<div className="loading">Carregando AppSec…</div>}>
+              <AppSecPage />
             </Suspense>
           }
         />
