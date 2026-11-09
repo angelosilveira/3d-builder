@@ -171,6 +171,12 @@ export function Filtros() {
         <li>
           <i className="aps-leg-esmaecido" aria-hidden /> Fora do filtro
         </li>
+        <li>
+          <i className="aps-leg-cnx" aria-hidden /> Conexão: o pacote vai de quem consome para quem é consumido
+        </li>
+        <li>
+          <i className="aps-leg-cnx is-risco" aria-hidden /> Conexão sem autenticação ou sem TLS
+        </li>
       </ul>
     </section>
   )

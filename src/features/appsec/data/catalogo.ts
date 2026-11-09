@@ -1,5 +1,8 @@
 import type {
+  Autenticacao,
   CategoriaDocumento,
+  ClassificacaoDados,
+  Protocolo,
   Criticidade,
   Maturidade,
   OrigemVulnerabilidade,
@@ -340,3 +343,15 @@ export const VERSOES_ANTERIORES: Record<TipoAtivo, string[]> = {
 
 /** Prazo padrão (dias) para concluir uma qualificação aberta. */
 export const PRAZO_QUALIFICACAO_DIAS = 45
+
+/* ---------------- Rede de conexões ---------------- */
+
+export const PROTOCOLO_LABEL: Record<Protocolo, string> = { https: 'HTTPS', grpc: 'gRPC', graphql: 'GraphQL', mensageria: 'Mensageria' }
+export const AUTENTICACAO_LABEL: Record<Autenticacao, string> = {
+  mtls: 'mTLS',
+  oauth2: 'OAuth 2.0',
+  jwt: 'JWT',
+  api_key: 'API key',
+  nenhuma: 'Sem autenticação',
+}
+export const DADOS_LABEL: Record<ClassificacaoDados, string> = { sensiveis: 'Dados sensíveis', internos: 'Dados internos', publicos: 'Dados públicos' }

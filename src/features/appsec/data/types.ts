@@ -22,6 +22,9 @@ export type Resposta = 'sim' | 'nao' | 'parcial' | 'nao_se_aplica' | null
 /** Nível de maturidade da qualificação (1 = inicial … 5 = otimizado). */
 export type Maturidade = 1 | 2 | 3 | 4 | 5
 export type CategoriaDocumento = 'pentest' | 'sbom' | 'arquitetura' | 'evidencia' | 'aceite_risco'
+export type Protocolo = 'https' | 'grpc' | 'graphql' | 'mensageria'
+export type Autenticacao = 'mtls' | 'oauth2' | 'jwt' | 'api_key' | 'nenhuma'
+export type ClassificacaoDados = 'sensiveis' | 'internos' | 'publicos'
 
 export interface Area {
   id: string
@@ -123,6 +126,21 @@ export interface Pendencia {
   status: StatusPendencia
 }
 
+/**
+ * Chamada entre ativos (origem consome destino): consumidor → proxy →
+ * microserviços, inclusive entre projetos. Base do mapa de rede.
+ */
+export interface Conexao {
+  id: string
+  origemId: string
+  destinoId: string
+  protocolo: Protocolo
+  autenticacao: Autenticacao
+  /** Tráfego cifrado (TLS). */
+  criptografada: boolean
+  dados: ClassificacaoDados
+}
+
 export interface AppSecData {
   /** Momento de referência dos dados (o "agora" dos prazos). */
   geradoEm: string
@@ -134,6 +152,7 @@ export interface AppSecData {
   documentos: Documento[]
   vulnerabilidades: Vulnerabilidade[]
   pendencias: Pendencia[]
+  conexoes: Conexao[]
 }
 
 /** O que pode estar selecionado na tela. */

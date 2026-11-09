@@ -803,6 +803,47 @@
 }
 
 /* ==========================================================================
+   Rede de conexões
+   ========================================================================== */
+.aps-camera-sep { width: 1px; margin: 6px 3px; background: var(--linha); }
+.aps-btn-rede.is-ativo { background: var(--tinta); color: #fff; }
+.aps-btn-rede.is-ativo:hover { background: var(--foco); }
+.aps-leg-cnx { width: 18px; height: 3px; border-radius: 2px; background: linear-gradient(90deg, #b5c1cd, #2f4a66); position: relative; flex: none; }
+.aps-leg-cnx::after { content: ''; position: absolute; right: 3px; top: -2.5px; width: 8px; height: 8px; border-radius: 50%; background: #0fa3c7; }
+.aps-leg-cnx.is-risco { background: linear-gradient(90deg, #f0b9b9, #d64545); }
+.aps-leg-cnx.is-risco::after { background: #ff4d3d; }
+
+.aps-rotulos-rede { z-index: 5; }
+.aps-rotulo-cnx {
+  position: absolute;
+  left: 0;
+  top: 0;
+  translate: -50% -50%;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font: 500 11px var(--f-mono);
+  white-space: nowrap;
+  color: #fff;
+  background: rgb(47 74 102 / 0.92);
+  box-shadow: 0 3px 8px -3px rgb(20 26 34 / 0.5);
+  will-change: transform;
+}
+.aps-rotulo-cnx.is-risco { background: rgb(196 64 47 / 0.95); }
+
+.aps-cnx { display: grid; gap: 10px; }
+.aps-cnx-titulo { margin: 0 0 4px; font-size: 12px; font-weight: 600; color: var(--tinta-2); text-transform: uppercase; letter-spacing: 0.05em; }
+.aps-cnx-lista { display: grid; gap: 4px; }
+.aps-cnx-lista li { display: grid; gap: 3px; padding: 6px 8px; border-radius: 8px; background: rgb(20 26 34 / 0.035); border-left: 3px solid #2f4a66; }
+.aps-cnx-lista li.is-risco { border-left-color: var(--reprovado); background: rgb(196 64 47 / 0.06); }
+.aps-cnx-btn { display: flex; align-items: center; gap: 7px; min-width: 0; color: var(--tinta); text-decoration: none; font-weight: 500; }
+.aps-cnx-btn:hover .aps-lista-nome { text-decoration: underline; }
+.aps-cnx-seta { font-family: var(--f-mono); color: var(--tinta-2); }
+.aps-cnx-ext { font-size: 11px; font-weight: 600; padding: 0 6px; border-radius: 5px; background: rgb(39 71 201 / 0.1); color: var(--foco); white-space: nowrap; }
+.aps-cnx-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 11.5px; padding-left: 22px; }
+.aps-cnx-chip { font: 500 11px var(--f-mono); padding: 0 6px; border-radius: 5px; background: #fff; border: 1px solid var(--linha); }
+.aps-cnx-chip.is-risco { color: var(--reprovado-tinta); border-color: rgb(196 64 47 / 0.4); background: rgb(196 64 47 / 0.08); }
+
+/* ==========================================================================
    Telas médias
    ========================================================================== */
 @media (max-width: 1300px) {

@@ -1,4 +1,5 @@
 import { useAppSecUi, type ComandoCamera } from '../state/uiStore'
+import { BotaoRede } from './Rede'
 
 const BOTOES: { tipo: ComandoCamera; rotulo: string; icone: string }[] = [
   { tipo: 'zoom_in', rotulo: 'Aproximar', icone: 'M12 6v12M6 12h12' },
@@ -19,6 +20,8 @@ export function ControlesCamera() {
           </svg>
         </button>
       ))}
+      <span className="aps-camera-sep" aria-hidden />
+      <BotaoRede />
     </div>
   )
 }

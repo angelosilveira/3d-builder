@@ -20,6 +20,8 @@ interface AppSecUiState {
   filtros: Filtros
   aba: Aba
   comando: { tipo: ComandoCamera; n: number; regiao?: Regiao } | null
+  /** Mostra todas as conexões do mapa (sem seleção, só a rede em foco aparece). */
+  redeVisivel: boolean
 
   selecionar: (s: Selecao | null) => void
   setHover: (id: string | null) => void
@@ -27,6 +29,7 @@ interface AppSecUiState {
   limparFiltros: () => void
   setAba: (aba: Aba) => void
   comandar: (tipo: ComandoCamera, regiao?: Regiao) => void
+  alternarRede: () => void
 }
 
 /** Aba da tabela que lista cada tipo de seleção. */
@@ -45,6 +48,7 @@ export const useAppSecUi = create<AppSecUiState>()((set) => ({
   filtros: FILTROS_VAZIOS,
   aba: 'qualificacoes',
   comando: null,
+  redeVisivel: false,
 
   selecionar: (selecao) => set((s) => ({ selecao, aba: selecao ? ABA_DA_SELECAO[selecao.tipo] : s.aba })),
   setHover: (hoverId) => set((s) => (s.hoverId === hoverId ? s : { hoverId })),
@@ -52,6 +56,7 @@ export const useAppSecUi = create<AppSecUiState>()((set) => ({
   limparFiltros: () => set({ filtros: FILTROS_VAZIOS }),
   setAba: (aba) => set({ aba }),
   comandar: (tipo, regiao) => set((s) => ({ comando: { tipo, regiao, n: (s.comando?.n ?? 0) + 1 } })),
+  alternarRede: () => set((s) => ({ redeVisivel: !s.redeVisivel })),
 }))
 
 export const mesmaSelecao = (a: Selecao | null, b: Selecao | null) => a?.tipo === b?.tipo && a?.id === b?.id

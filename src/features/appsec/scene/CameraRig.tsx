@@ -44,6 +44,25 @@ export function projecao(r: Regiao, azimute: number, polar = POLAR, altura = 2.5
   return { w: x1 - x0, h: y1 - y0 }
 }
 
+/** Enquadra o ativo com os vizinhos diretos do mesmo projeto (a rede de perto). */
+function redeVizinha(ativoId: string): Regiao | null {
+  const { layout, indice } = useAppSecData.getState()
+  const a = indice.ativoPorId.get(ativoId)
+  const i = indice.posAtivo.get(ativoId)
+  if (!a || i === undefined) return null
+  const vizinhos = [...(indice.conexoesSaida.get(ativoId) ?? []).map((c) => c.destinoId), ...(indice.conexoesEntrada.get(ativoId) ?? []).map((c) => c.origemId)]
+  let [x0, x1, z0, z1] = [layout.pos[i * 2], layout.pos[i * 2], layout.pos[i * 2 + 1], layout.pos[i * 2 + 1]]
+  for (const id of vizinhos) {
+    if (indice.ativoPorId.get(id)?.projetoId !== a.projetoId) continue
+    const j = indice.posAtivo.get(id)!
+    x0 = Math.min(x0, layout.pos[j * 2])
+    x1 = Math.max(x1, layout.pos[j * 2])
+    z0 = Math.min(z0, layout.pos[j * 2 + 1])
+    z1 = Math.max(z1, layout.pos[j * 2 + 1])
+  }
+  return { x: (x0 + x1) / 2, z: (z0 + z1) / 2, w: Math.max(9, x1 - x0 + 4), d: Math.max(9, z1 - z0 + 4) }
+}
+
 function regiaoDaSelecao(sel: Selecao): Regiao | null {
   const { data, layout, indice } = useAppSecData.getState()
   const doAtivo = (id: string | undefined): Regiao | null => {
@@ -52,7 +71,7 @@ function regiaoDaSelecao(sel: Selecao): Regiao | null {
   }
   switch (sel.tipo) {
     case 'ativo':
-      return doAtivo(sel.id)
+      return redeVizinha(sel.id) ?? doAtivo(sel.id)
     case 'qualificacao':
       return doAtivo(indice.qualPorId.get(sel.id)?.ativoId)
     case 'vulnerabilidade':

@@ -6,7 +6,8 @@ import { TIPOS } from '../data/catalogo'
 import { SEM_VULN, statusDoAtivo } from '../data/derived'
 import { rankingAreas } from '../data/gamificacao'
 import { useAppSecData } from '../data/store'
-import type { Selecao, Severidade, TipoAtivo } from '../data/types'
+import type { Severidade, TipoAtivo } from '../data/types'
+import { ativoDaSelecao, redeDaSelecao } from '../state/rede'
 import { useAppSecUi } from '../state/uiStore'
 import { useMascara } from '../state/useMascara'
 import { COR, COR_SEVERIDADE, COR_STATUS } from './palette'
@@ -33,16 +34,7 @@ function criarGeometrias(): Record<TipoAtivo, THREE.BufferGeometry> {
 /** Altura relativa da forma pela maturidade (nível 1 = 0,8 … nível 5 = 1,6). */
 export const alturaMaturidade = (nivel: number) => 0.6 + 0.2 * Math.max(1, nivel)
 
-/** Ativo destacado pela seleção (ativo, qualificação, vulnerabilidade ou pendência). */
-export function ativoDaSelecao(selecao: Selecao | null): string | null {
-  if (!selecao) return null
-  const { data, indice } = useAppSecData.getState()
-  if (selecao.tipo === 'ativo') return selecao.id
-  if (selecao.tipo === 'qualificacao') return indice.qualPorId.get(selecao.id)?.ativoId ?? null
-  if (selecao.tipo === 'vulnerabilidade') return data.vulnerabilidades.find((v) => v.id === selecao.id)?.ativoId ?? null
-  if (selecao.tipo === 'pendencia') return data.pendencias.find((p) => p.id === selecao.id)?.ativoId ?? null
-  return null
-}
+export { ativoDaSelecao }
 
 /**
  * Estado atual (animado) de cada ativo, lido por outros efeitos da cena
@@ -187,6 +179,8 @@ export function Ecossistema() {
     const selId = ativoDaSelecao(selecao)
     const analistaFoco = selecao?.tipo === 'analista' ? selecao.id : null
     const projetoFoco = selecao?.tipo === 'projeto' ? selecao.id : null
+    // Com uma rede em foco, os ativos dela (inclusive de outros projetos) ficam acesos.
+    const rede = redeDaSelecao(selecao)?.ativos ?? null
     const cor = new THREE.Color()
     const branco = new THREE.Color('#FFFFFF')
     const { alvo, corAlvo, visivel } = anim
@@ -197,7 +191,7 @@ export function Ecossistema() {
       const ok =
         mascara[i] === 1 &&
         (!analistaFoco || indice.vigente.get(a.id)?.analistaId === analistaFoco) &&
-        (!projetoFoco || a.projetoId === projetoFoco)
+        (rede ? rede.has(a.id) || (!!projetoFoco && a.projetoId === projetoFoco) : !projetoFoco || a.projetoId === projetoFoco)
       visivel[i] = ok ? 1 : 0
       let xz = status === 'depreciado' ? 0.7 : 1
       let elev = 0

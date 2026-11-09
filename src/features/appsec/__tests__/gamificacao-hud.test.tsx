@@ -9,6 +9,8 @@ import { missoes, nivelDe, pontuacao } from '../data/gamificacao'
 import { useAppSecData } from '../data/store'
 import { DetailCard } from '../hud/DetailCard'
 import { PainelPostura, Toasts } from '../hud/Gamificacao'
+import { BotaoRede } from '../hud/Rede'
+import { AUTENTICACAO_LABEL } from '../data/catalogo'
 import { KpiRow } from '../hud/KpiRow'
 import { useEfeitos } from '../state/efeitos'
 import { useAppSecUi } from '../state/uiStore'
@@ -125,5 +127,35 @@ describe('Conquistas do projeto', () => {
     const card = screen.getByRole('complementary', { name: 'Detalhe do projeto' })
     expect(within(card).getByText(/^\d de 5 conquistas$/)).toBeInTheDocument()
     expect(within(card).getAllByRole('listitem', { name: /(Obtida|Ainda não obtida)$/ })).toHaveLength(5)
+  })
+})
+
+describe('Rede de conexões no HUD', () => {
+  it('a aba Conexões lista o que o ativo consome e quem o consome, e navega', async () => {
+    const user = userEvent.setup()
+    const { data, indice } = useAppSecData.getState()
+    const ms = data.ativos.find((a) => a.tipo === 'microservico' && indice.conexoesSaida.get(a.id)?.length && indice.conexoesEntrada.get(a.id)?.length)!
+    const saida = indice.conexoesSaida.get(ms.id)!
+    act(() => useAppSecUi.getState().selecionar({ tipo: 'ativo', id: ms.id }))
+    render(<DetailCard />)
+    await user.click(screen.getByRole('tab', { name: /Conexões/ }))
+    const consome = screen.getByRole('list', { name: `Consome (${saida.length})` })
+    expect(within(consome).getAllByRole('listitem')).toHaveLength(saida.length)
+    expect(consome).toHaveTextContent(AUTENTICACAO_LABEL[saida[0].autenticacao])
+    expect(screen.getByRole('list', { name: `Consumido por (${indice.conexoesEntrada.get(ms.id)!.length})` })).toBeInTheDocument()
+    const destino = indice.ativoPorId.get(saida[0].destinoId)!
+    await user.click(within(consome).getAllByRole('button')[0])
+    expect(useAppSecUi.getState().selecao).toEqual({ tipo: 'ativo', id: destino.id })
+  })
+
+  it('o botão de rede alterna a rede inteira no mapa', async () => {
+    const user = userEvent.setup()
+    act(() => useAppSecUi.setState({ redeVisivel: false }))
+    render(<BotaoRede />)
+    const botao = screen.getByRole('button', { name: 'Mostrar todas as conexões entre ativos' })
+    expect(botao).toHaveAttribute('aria-pressed', 'false')
+    await user.click(botao)
+    expect(useAppSecUi.getState().redeVisivel).toBe(true)
+    expect(screen.getByRole('button', { name: 'Ocultar as conexões do mapa' })).toHaveAttribute('aria-pressed', 'true')
   })
 })

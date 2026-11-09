@@ -3,6 +3,7 @@ import { Suspense, useCallback, useEffect } from 'react'
 import * as THREE from 'three'
 import { useAppSecUi } from '../state/uiStore'
 import { CameraRig } from './CameraRig'
+import { Conexoes } from './Conexoes'
 import { Ecossistema } from './Ecossistema'
 import { Explosoes } from './Explosoes'
 import { Farol } from './Farol'
@@ -50,6 +51,7 @@ export default function AppSecScene() {
       <CameraRig />
       <Suspense fallback={null}>
         <Ecossistema />
+        <Conexoes />
         <Farol />
         <Explosoes />
       </Suspense>

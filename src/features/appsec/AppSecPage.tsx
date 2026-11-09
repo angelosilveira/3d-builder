@@ -12,6 +12,7 @@ import { DetailCard } from './hud/DetailCard'
 import { Filtros } from './hud/Filtros'
 import { Flutuantes, Toasts } from './hud/Gamificacao'
 import { KpiRow } from './hud/KpiRow'
+import { RotulosRede } from './hud/Rede'
 import { Rotulos } from './hud/Rotulos'
 import { Tooltip } from './hud/Tooltip'
 import { TopBar } from './hud/TopBar'
@@ -35,6 +36,7 @@ export default function AppSecPage() {
           </Suspense>
         </SceneErrorBoundary>
         <Rotulos />
+        <RotulosRede />
         <Flutuantes />
         <ControlesCamera />
       </main>

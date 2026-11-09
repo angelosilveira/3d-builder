@@ -20,12 +20,15 @@ import type {
   Analista,
   Area,
   Ativo,
+  Autenticacao,
   CategoriaDocumento,
+  Conexao,
   Criticidade,
   Documento,
   Maturidade,
   Pendencia,
   Projeto,
+  Protocolo,
   Qualificacao,
   Severidade,
   StatusQualificacao,
@@ -395,7 +398,96 @@ export function criarAppSecMock({ agora = new Date(), seed = 20261108 }: OpcoesM
     }
   })
 
-  return { geradoEm: agora.toISOString(), areas, analistas, projetos, ativos, qualificacoes, documentos, vulnerabilidades, pendencias }
+  const conexoes = gerarConexoes(projetos, ativos, areas, seed)
+  return { geradoEm: agora.toISOString(), areas, analistas, projetos, ativos, qualificacoes, documentos, vulnerabilidades, pendencias, conexoes }
+}
+
+/**
+ * Rede de chamadas, com PRNG próprio (não altera o restante do mock):
+ * apps web/mobile → proxy externo; desktop → proxy interno (ou direto, no legado);
+ * proxy → microserviços de borda; microserviço → microserviços (sem ciclos) e,
+ * às vezes, microserviços de outros projetos (da mesma área, em geral).
+ */
+function gerarConexoes(projetos: Projeto[], ativos: Ativo[], areas: Area[], seed: number): Conexao[] {
+  const r = rng(seed ^ 0x5eed)
+  const int = (min: number, max: number) => Math.floor(min + r() * (max - min + 1))
+  const chance = (p: number) => r() < p
+  const sensivel = new Set(areas.filter((a) => ['PG', 'CR', 'IN', 'SG'].includes(a.sigla)).map((a) => a.id))
+  const porProjeto = new Map<string, Ativo[]>()
+  for (const a of ativos) {
+    const l = porProjeto.get(a.projetoId)
+    if (l) l.push(a)
+    else porProjeto.set(a.projetoId, [a])
+  }
+  const msDaArea = new Map<string, Ativo[]>()
+  for (const a of ativos) if (a.tipo === 'microservico') msDaArea.set(a.areaId, [...(msDaArea.get(a.areaId) ?? []), a])
+  const todosMs = ativos.filter((a) => a.tipo === 'microservico')
+
+  const out: Conexao[] = []
+  const vistos = new Set<string>()
+  let seq = 1
+  const ligar = (o: Ativo, d: Ativo, tipo: 'consumidor' | 'borda' | 'interna' | 'externa') => {
+    const chave = `${o.id}>${d.id}`
+    if (o.id === d.id || vistos.has(chave)) return
+    vistos.add(chave)
+    const protocolo: Protocolo =
+      tipo === 'consumidor' ? (chance(0.2) ? 'graphql' : 'https') : tipo === 'borda' ? 'https' : chance(0.45) ? 'grpc' : chance(0.45) ? 'https' : 'mensageria'
+    let autenticacao: Autenticacao
+    if (tipo === 'consumidor') autenticacao = chance(0.6) ? 'oauth2' : chance(0.85) ? 'jwt' : 'api_key'
+    else if (tipo === 'externa') autenticacao = chance(0.55) ? 'mtls' : chance(0.6) ? 'oauth2' : chance(0.7) ? 'api_key' : 'nenhuma'
+    else autenticacao = chance(0.45) ? 'mtls' : chance(0.55) ? 'jwt' : chance(0.75) ? 'api_key' : 'nenhuma'
+    const criptografada = tipo === 'consumidor' || tipo === 'borda' ? true : !chance(autenticacao === 'nenhuma' ? 0.35 : 0.04)
+    out.push({
+      id: `cnx-${String(seq++).padStart(5, '0')}`,
+      origemId: o.id,
+      destinoId: d.id,
+      protocolo,
+      autenticacao,
+      criptografada,
+      dados: sensivel.has(d.areaId) ? (chance(0.7) ? 'sensiveis' : 'internos') : chance(0.25) ? 'publicos' : 'internos',
+    })
+  }
+
+  for (const projeto of projetos) {
+    const lista = porProjeto.get(projeto.id) ?? []
+    const proxies = lista.filter((a) => a.tipo === 'proxy')
+    const ms = lista.filter((a) => a.tipo === 'microservico')
+    if (!ms.length) continue
+    const externo = proxies[0]
+    const interno = proxies[1] ?? proxies[0]
+    // Microserviços de borda (expostos pelos proxies): os primeiros da lista.
+    const qtdBorda = Math.min(ms.length, int(2, 4))
+    const borda = ms.slice(0, qtdBorda)
+
+    for (const a of lista) {
+      if (a.tipo === 'web' || a.tipo === 'mobile') {
+        if (externo) ligar(a, externo, 'consumidor')
+        else ligar(a, borda[0], 'consumidor')
+      } else if (a.tipo === 'desktop') {
+        if (interno && !chance(0.3)) ligar(a, interno, 'consumidor')
+        else ligar(a, borda[int(0, borda.length - 1)], 'consumidor')
+      }
+    }
+    proxies.forEach((p, k) => {
+      const alvos = k === 0 ? borda : borda.slice(0, Math.max(1, int(1, borda.length)))
+      for (const b of alvos) ligar(p, b, 'borda')
+    })
+    // Chamadas internas: só para frente na lista (grafo acíclico).
+    ms.forEach((m, i) => {
+      const resto = ms.length - i - 1
+      if (resto <= 0) return
+      const n = Math.min(resto, i < qtdBorda ? int(2, 4) : int(0, 2))
+      for (let k = 0; k < n; k++) ligar(m, ms[i + 1 + Math.floor(r() * resto)], 'interna')
+    })
+    // Chamadas para outros projetos.
+    for (const m of ms) {
+      if (!chance(0.14)) continue
+      const pool = chance(0.7) ? (msDaArea.get(m.areaId) ?? todosMs) : todosMs
+      const alvo = pool[Math.floor(r() * pool.length)]
+      if (alvo.projetoId !== m.projetoId) ligar(m, alvo, 'externa')
+    }
+  }
+  return out
 }
 
 function faixaCvss(sev: Severidade, t: number): number {

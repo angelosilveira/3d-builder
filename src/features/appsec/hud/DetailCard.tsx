@@ -13,6 +13,7 @@ import {
 } from '../data/catalogo'
 import {
   abertasPorSeveridade,
+  conexaoArriscada,
   contarStatus,
   documentosFaltando,
   maturidadeMedia,
@@ -30,6 +31,7 @@ import { nivelDe, pontuacao } from '../data/gamificacao'
 import { useAcaoGamificada } from '../state/useAcaoGamificada'
 import { useAppSecUi } from '../state/uiStore'
 import { ComposicaoPostura, Conquistas, ListaMissoes, RankingAreas } from './Gamificacao'
+import { ConexoesDoAtivo, useResumoRedeProjeto } from './Rede'
 import { data as fmtData, num, num1, pct, textoPrazo } from './format'
 import {
   BarraEmpilhada,
@@ -188,7 +190,7 @@ function Formulario({ q }: { q: Qualificacao }) {
 
 /* ---------------- Abas internas da qualificação ---------------- */
 
-type AbaQual = 'formulario' | 'pendencias' | 'documentos' | 'vulnerabilidades' | 'historico'
+type AbaQual = 'formulario' | 'pendencias' | 'documentos' | 'vulnerabilidades' | 'conexoes' | 'historico'
 
 function AbasQualificacao({ abas, conteudo }: { abas: { id: AbaQual; rotulo: string; n?: number; alerta?: boolean }[]; conteudo: Record<AbaQual, ReactNode> }) {
   const [ativa, setAtiva] = useState<AbaQual>('formulario')
@@ -256,6 +258,7 @@ function CardQualificacao({ ativo, q }: { ativo: Ativo; q: Qualificacao }) {
   )
   const historico = indice.historico.get(ativo.id) ?? [q]
   const vencida = qualificacaoVencida(q, agora)
+  const conexoes = [...(indice.conexoesSaida.get(ativo.id) ?? []), ...(indice.conexoesEntrada.get(ativo.id) ?? [])]
   const acao = useAcaoGamificada()
   const concluirPendencia = useAppSecData((s) => s.concluirPendencia)
   const enviarDocumento = useAppSecData((s) => s.enviarDocumento)
@@ -324,6 +327,7 @@ function CardQualificacao({ ativo, q }: { ativo: Ativo; q: Qualificacao }) {
           { id: 'pendencias', rotulo: 'Pendências', n: pendAbertas, alerta: pend.some((p) => pendenciaVencida(p, agora)) },
           { id: 'documentos', rotulo: 'Documentos', n: docs.length, alerta: faltando.length > 0 },
           { id: 'vulnerabilidades', rotulo: 'Vulnerabilidades', n: vulns.filter(vulnAberta).length },
+          { id: 'conexoes', rotulo: 'Conexões', n: conexoes.length, alerta: conexoes.some(conexaoArriscada) },
           { id: 'historico', rotulo: 'Histórico', n: historico.length },
         ]}
         conteudo={{
@@ -419,6 +423,7 @@ function CardQualificacao({ ativo, q }: { ativo: Ativo; q: Qualificacao }) {
                 ))}
               </ul>
             ),
+          conexoes: <ConexoesDoAtivo ativo={ativo} />,
           historico: (
             <ol className="aps-hist" aria-label="Qualificações do ativo, da mais recente para a mais antiga">
               {historico.map((h) => (
@@ -460,6 +465,7 @@ function CardProjeto({ id }: { id: string }) {
   const vigentes = ativos.map((a) => indice.vigente.get(a.id)!).filter(Boolean)
   const vencidas = vigentes.filter((q) => qualificacaoVencida(q, indice.agora)).length
   const semDocs = vigentes.filter((q) => documentosFaltando(q, indice.docsPorQual.get(q.id) ?? []).length > 0).length
+  const rede = useResumoRedeProjeto(id)
   const postura = useMemo(() => {
     const total = pontuacao(data, indice, ativos).total
     return { total, nivel: nivelDe(total).atual }
@@ -528,6 +534,22 @@ function CardProjeto({ id }: { id: string }) {
           </ul>
         </Secao>
       )}
+      <Secao titulo="Rede" extra={<span className="aps-muted aps-pequeno">conexões no mapa</span>}>
+        <dl className="aps-campos">
+          <Campo rotulo="Dentro do projeto" mono>
+            {rede.internas}
+          </Campo>
+          <Campo rotulo="Chamam outros projetos" mono>
+            {rede.saem}
+          </Campo>
+          <Campo rotulo="Chamadas de outros projetos" mono>
+            {rede.chegam}
+          </Campo>
+          <Campo rotulo="Sem autenticação ou TLS" mono>
+            <span className={rede.arriscadas ? 'aps-txt-ruim' : undefined}>{rede.arriscadas}</span>
+          </Campo>
+        </dl>
+      </Secao>
       <Secao titulo="Conquistas">
         <Conquistas ativos={ativos} />
       </Secao>

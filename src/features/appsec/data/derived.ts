@@ -1,5 +1,6 @@
 import { DOCUMENTOS_OBRIGATORIOS, FORMULARIOS, SEVERIDADE_PESO, STATUS } from './catalogo'
 import type {
+  Conexao,
   AppSecData,
   Ativo,
   CategoriaDocumento,
@@ -71,6 +72,10 @@ export interface Indice {
   /** Prazo vencido: da qualificação vigente ou de alguma pendência aberta. */
   prazoVencido: Uint8Array
   docsFaltando: Uint8Array
+  /** Conexões que o ativo inicia (ele consome o destino). */
+  conexoesSaida: Map<string, Conexao[]>
+  /** Conexões que chegam ao ativo (ele é consumido). */
+  conexoesEntrada: Map<string, Conexao[]>
 }
 
 function agrupar<T>(lista: T[], chave: (t: T) => string): Map<string, T[]> {
@@ -161,6 +166,8 @@ export function criarIndice(data: AppSecData): Indice {
     pendVencida,
     prazoVencido,
     docsFaltando,
+    conexoesSaida: agrupar(data.conexoes ?? [], (c) => c.origemId),
+    conexoesEntrada: agrupar(data.conexoes ?? [], (c) => c.destinoId),
   }
 }
 
@@ -373,4 +380,61 @@ export function buscar(data: AppSecData, termo: string, limite = 8): ResultadoBu
     add({ tipo: 'vulnerabilidade', id: v.id, titulo: `${v.codigo} · ${v.titulo}`, detalhe: v.cwe }, `${v.codigo} ${v.titulo} ${v.cwe}`)
   }
   return out
+}
+
+/* ---------------------------- Rede ---------------------------- */
+
+/** Conexão que merece atenção: sem autenticação ou sem criptografia. */
+export const conexaoArriscada = (c: Conexao) => c.autenticacao === 'nenhuma' || !c.criptografada
+
+export interface ConexaoNaRede {
+  conexao: Conexao
+  /** Distância (em saltos) até o ativo de partida: 1 = ligação direta. */
+  salto: number
+}
+
+/**
+ * Caminho de rede de um ativo: quem o consome (subindo até os consumidores)
+ * e o que ele consome (descendo pelas dependências), até `maxSaltos`.
+ */
+export function redeDoAtivo(idx: Indice, ativoId: string, maxSaltos = 3): { conexoes: ConexaoNaRede[]; ativos: Set<string> } {
+  const conexoes: ConexaoNaRede[] = []
+  const vistas = new Set<string>()
+  const ativos = new Set([ativoId])
+  for (const sentido of ['saida', 'entrada'] as const) {
+    let fronteira = [ativoId]
+    for (let salto = 1; salto <= maxSaltos && fronteira.length; salto++) {
+      const prox: string[] = []
+      for (const id of fronteira) {
+        const lista = (sentido === 'saida' ? idx.conexoesSaida : idx.conexoesEntrada).get(id) ?? []
+        for (const c of lista) {
+          if (vistas.has(c.id)) continue
+          vistas.add(c.id)
+          conexoes.push({ conexao: c, salto })
+          const outro = sentido === 'saida' ? c.destinoId : c.origemId
+          if (!ativos.has(outro)) {
+            ativos.add(outro)
+            prox.push(outro)
+          }
+        }
+      }
+      fronteira = prox
+    }
+  }
+  return { conexoes, ativos }
+}
+
+/** Conexões que tocam um projeto (internas e com outros projetos). */
+export function redeDoProjeto(data: AppSecData, idx: Indice, projetoId: string): { conexoes: ConexaoNaRede[]; ativos: Set<string> } {
+  const conexoes: ConexaoNaRede[] = []
+  const ativos = new Set<string>()
+  for (const c of data.conexoes) {
+    const o = idx.ativoPorId.get(c.origemId)
+    const d = idx.ativoPorId.get(c.destinoId)
+    if (!o || !d || (o.projetoId !== projetoId && d.projetoId !== projetoId)) continue
+    conexoes.push({ conexao: c, salto: o.projetoId === d.projetoId ? 1 : 2 })
+    ativos.add(o.id)
+    ativos.add(d.id)
+  }
+  return { conexoes, ativos }
 }
