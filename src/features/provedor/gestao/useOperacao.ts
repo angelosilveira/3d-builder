@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Incident } from '../data'
 import { groupOpenOutages } from '../outages'
-import { listarOS } from './equipe'
+import { listarOS, VIAGEM_MAXIMA } from './equipe'
 import { situacaoEstoque } from './estoque'
 import { resumoFinanceiro } from './financeiro'
 import { conquistas, missoes, nivelSaude, saudeOperacao, type Operacao } from './saude'
@@ -30,8 +30,17 @@ export function useOperacao(incidentes: readonly Incident[]) {
   const pagoHoje = useGestao((s) => s.pagoHoje)
   const cobrancas = useGestao((s) => s.cobrancas)
 
-  const emTransito = useMemo(() => Object.values(estadoOS).some((e) => e.status === 'a_caminho'), [estadoOS])
-  const agora = useRelogio(emTransito)
+  // Só há o que esperar enquanto alguma viatura ainda não chegou (a viagem mais longa dura 20 s).
+  const [viajando, setViajando] = useState(false)
+  useEffect(() => {
+    const ultima = Math.max(0, ...Object.values(estadoOS).map((e) => (e.status === 'a_caminho' ? (e.despachadaEm ?? 0) : 0)))
+    const resta = ultima + VIAGEM_MAXIMA + 1500 - Date.now()
+    setViajando(resta > 0)
+    if (resta <= 0) return
+    const id = window.setTimeout(() => setViajando(false), resta)
+    return () => window.clearTimeout(id)
+  }, [estadoOS])
+  const agora = useRelogio(viajando)
   const ordens = useMemo(() => listarOS(incidentes, estadoOS, agora), [incidentes, estadoOS, agora])
   const financeiro = useMemo(() => resumoFinanceiro(pagas, contasPagas, contasExtras, recebidoHoje, pagoHoje), [pagas, contasPagas, contasExtras, recebidoHoje, pagoHoje])
   const estoque = useMemo(() => situacaoEstoque(consumo, pedidos), [consumo, pedidos])

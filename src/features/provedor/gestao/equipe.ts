@@ -140,8 +140,9 @@ export const osDoIncidente = (clientId: string) => 'OS-R-' + clientId
 export const totalReparosIniciais = demoIncidents.length
 
 /** Tempo de deslocamento da base até o cliente (ms), acelerado para a demonstração. */
+export const VIAGEM_MAXIMA = 20000
 export function tempoViagem(client: Client) {
-  return Math.max(6000, Math.min(20000, Math.hypot(client.x, client.z) * 420))
+  return Math.max(6000, Math.min(VIAGEM_MAXIMA, Math.hypot(client.x, client.z) * 420))
 }
 
 /**

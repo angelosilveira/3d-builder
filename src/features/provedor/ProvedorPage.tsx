@@ -1,7 +1,7 @@
 import {urbanAreas,type UrbanArea} from './city'
 import {groupOpenOutages,type OutageGroup} from './outages'
 import {OutageCards,Investigation,CityDirectory} from './OperationsPanels'
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import {
   accessPoints,
@@ -15,7 +15,6 @@ import {
   headquarters,
   islands,
   closeIncident,isIncidentStorageKey,
-  money,
   readIncidents,
   regions,
   statusText,
@@ -28,6 +27,26 @@ import {
 import { facilityAt } from './facility'
 import { Icon } from './icons'
 import NetworkMap from './NetworkMap'
+import type { Camada, DadosCamada } from './camadas'
+import { useGestao } from './gestao/store'
+import { useOperacao, type OperacaoCompleta } from './gestao/useOperacao'
+import type { Modulo } from './gestao/saude'
+import { Avisos, Dock, FaixaKpis, MODULO_LABEL, MODULOS, Placar, useRecompensas } from './GestaoHud'
+import { FaturasDoCliente, OrdensDoCliente, PainelGestao, PainelGrafana } from './GestaoPaineis'
+import { useMonitoramento } from './monitor'
+
+// A cidade 3D (Three.js) só é baixada quando for usada.
+const Cidade3D = lazy(() => import('./Cidade3D'))
+const CHAVE_MAPA = 'obra3d:provedor:mapa'
+function podeUsar3d() {
+  try {
+    if (localStorage.getItem(CHAVE_MAPA) === '2d') return false
+    const c = document.createElement('canvas')
+    return !!(c.getContext('webgl2') || c.getContext('webgl'))
+  } catch {
+    return false
+  }
+}
 import { HOJE_OBRAS, obras, statusObra, type Obra } from './obras'
 import { ListaObras, ObraDetalhe, ObrasDoPonto, ResumoObras } from './ObrasPanels'
 import './provedor.css'
@@ -159,7 +178,9 @@ function ClientDetails({
   incident,
   onSave,
   onSite,
+  op,
 }: {
+  op: OperacaoCompleta
   client: Client
   incident?: Incident
   onSite: (site: AccessPoint) => void
@@ -167,7 +188,6 @@ function ClientDetails({
 }) {
   const [closeError,setCloseError]=useState(false)
   const point = pointById.get(client.pointId)!
-  const total = client.invoices.reduce((acc, item) => acc + item.cents, 0)
   return (
     <>
       <div className="pv-detail-title">
@@ -221,26 +241,8 @@ function ClientDetails({
           </p>
         </details>
       ))}
-      <div className="pv-section-title">
-        <h3>Faturas em aberto</h3>
-        <b>{client.invoices.length}</b>
-      </div>
-      {total > 0 ? (
-        <div className="pv-bills">
-          {client.invoices.map((item) => (
-            <div key={item.due}>
-              <span>Venc. {dateLabel(item.due)}</span>
-              <strong>{money(item.cents)}</strong>
-            </div>
-          ))}
-          <div className="pv-total">
-            <span>Total em aberto</span>
-            <strong>{money(total)}</strong>
-          </div>
-        </div>
-      ) : (
-        <p className="pv-empty">Nenhuma fatura em aberto.</p>
-      )}
+      <OrdensDoCliente client={client} op={op} aoMudarIncidentes={onSave} />
+      <FaturasDoCliente client={client} />
       {incident ? (
         <div className={'pv-report ' + incident.kind}>
           <h3>
@@ -290,11 +292,31 @@ export default function ProvedorPage() {
   const [showObras, setShowObras] = useState(false)
   /** Data da linha do tempo das obras (null = hoje, o que já foi executado). */
   const [dataObras, setDataObras] = useState<string | null>(null)
+  /** Camada de gestão desenhada no mapa. */
+  const [camada, setCamada] = useState<Camada>('rede')
+  /** Módulo de gestão aberto no painel, e de qual módulo o usuário veio ao abrir um cliente. */
+  const [modulo, setModulo] = useState<Modulo | null>(null)
+  const [origem, setOrigem] = useState<Modulo | null>(null)
+  const [mapa3d, setMapa3d] = useState(podeUsar3d)
+  const usarMapa = useCallback((tresD: boolean) => {
+    setMapa3d(tresD)
+    try {
+      localStorage.setItem(CHAVE_MAPA, tresD ? '3d' : '2d')
+    } catch {
+      /* Sem armazenamento: a escolha vale só para esta visita. */
+    }
+  }, [])
+  const semWebgl = useCallback(() => setMapa3d(false), [])
   const root = useRef<HTMLDivElement>(null),
     panel = useRef<HTMLElement>(null),
     exploreButton = useRef<HTMLButtonElement>(null)
   const incidents = useMemo(() => new Map(items.map((i) => [i.clientId, i])), [items])
   const groups=useMemo(()=>groupOpenOutages(items),[items])
+  const operacao = useOperacao(items)
+  useMonitoramento(items)
+  const pagas = useGestao((s) => s.pagas)
+  const dadosCamada = useMemo<DadosCamada>(() => ({ camada, pagas, ordens: operacao.ordens }), [camada, pagas, operacao.ordens])
+  useRecompensas(operacao)
   const investigation=groups.find(g=>g.id===investigationId)
   const clientGroup=client?groups.find(g=>g.reports.some(r=>r.clientId===client.id)):undefined
   const incidentClients = useMemo(
@@ -328,6 +350,8 @@ export default function ProvedorPage() {
     setShowIncidents(false)
     setObra(null)
     setShowObras(false)
+    setModulo(null)
+    setOrigem(null)
     setAnnouncement('')
     requestAnimationFrame(() => {
       if (panel.current) {
@@ -344,15 +368,35 @@ export default function ProvedorPage() {
     if (!next) setPanelOpen(false)
   }
   function chooseSite(next: AccessPoint) {
+    const veioDe = modulo ?? origem
     enter()
+    setOrigem(veioDe)
     setSite(next)
     setIsland(islands.find((r) => r.id === next.regionId)!)
     setClient(null)
   }
   function chooseArea(next:UrbanArea){chooseIsland(headquarters);setArea(next)}
   function inspect(group:OutageGroup){chooseSite(pointById.get(group.pointId)!);setInvestigationId(group.id)}
-  function chooseClient(next: Client) {
+  function abrirModulo(m: Modulo) {
     enter()
+    setIsland(null)
+    setSite(null)
+    setClient(null)
+    setModulo(m)
+    const alvo = MODULOS.find((x) => x.id === m)?.camada
+    if (alvo) setCamada(alvo)
+  }
+  function verRede() {
+    setCamada('rede')
+    if (modulo) {
+      setModulo(null)
+      setPanelOpen(false)
+    }
+  }
+  function chooseClient(next: Client) {
+    const veioDe = modulo ?? origem
+    enter()
+    setOrigem(veioDe)
     if(area && (area.id===next.districtId||area.id===next.streetId))setArea(area)
     if(investigation?.reports.some(r=>r.clientId===next.id))setInvestigationId(investigation.id)
     setClient(next)
@@ -379,7 +423,9 @@ export default function ProvedorPage() {
     setShowIncidents(alerts)
   }
   function back() {
-    if (obra) openObras()
+    if ((client || site) && origem) abrirModulo(origem)
+    else if (modulo) openExplorer()
+    else if (obra) openObras()
     else if (showObras) chooseIsland(headquarters)
     else if(client&&investigation)inspect(investigation)
     else if(client&&area)chooseArea(area)
@@ -412,27 +458,54 @@ export default function ProvedorPage() {
     (pointDirectory ? 'Pontos de acesso' : showIncidents ? 'Incidentes abertos' : 'Explorar rede')
   return (
     <div
-      className={'pv pv-atlas' + (panelOpen ? ' panel-open' : '')}
+      className={'pv pv-atlas camada-' + camada + (panelOpen ? ' panel-open' : '')}
       ref={root}
       onKeyDown={(e) => {
         if (e.key === 'Escape' && panelOpen) closePanel()
       }}
     >
       <main className="pv-stage">
-        <NetworkMap
-          obra={obra}
-          dataObras={dataObras}
-          selectObra={chooseObra}
-          activeGroup={investigation??null} area={area} selectArea={chooseArea} groups={groups} investigate={inspect}
-          island={island}
-          site={site}
-          client={client}
-          panelOpen={panelOpen}
-          incidents={incidents}
-          selectIsland={chooseIsland}
-          selectSite={chooseSite}
-          selectClient={chooseClient}
-        />
+        {mapa3d ? (
+          <Suspense fallback={<div className="pv-map pv-map-carregando">Construindo a cidade…</div>}>
+            <Cidade3D
+              aoFalhar={semWebgl}
+              trocarMapa={() => usarMapa(false)}
+              camada={dadosCamada}
+              obra={obra}
+              dataObras={dataObras}
+              selectObra={chooseObra}
+              activeGroup={investigation??null} area={area} selectArea={chooseArea} groups={groups} investigate={inspect}
+              island={island}
+              site={site}
+              client={client}
+              panelOpen={panelOpen}
+              incidents={incidents}
+              selectIsland={chooseIsland}
+              selectSite={chooseSite}
+              selectClient={chooseClient}
+            />
+          </Suspense>
+        ) : (
+          <NetworkMap
+            trocarMapa={() => usarMapa(true)}
+            camada={dadosCamada}
+            obra={obra}
+            dataObras={dataObras}
+            selectObra={chooseObra}
+            activeGroup={investigation??null} area={area} selectArea={chooseArea} groups={groups} investigate={inspect}
+            island={island}
+            site={site}
+            client={client}
+            panelOpen={panelOpen}
+            incidents={incidents}
+            selectIsland={chooseIsland}
+            selectSite={chooseSite}
+            selectClient={chooseClient}
+          />
+        )}
+        <Dock op={operacao} modulo={modulo} camada={camada} abrir={abrirModulo} verRede={verRede} />
+        <FaixaKpis op={operacao} camada={camada} />
+        <Avisos />
         <header className="pv-console">
           <div className="pv-brand">
             <span className="pv-logo">
@@ -447,6 +520,7 @@ export default function ProvedorPage() {
           <span className="pv-location">
             <Icon name="pin" /> Aracatu · BA
           </span>
+          <Placar op={operacao} abrir={() => abrirModulo('missoes')} />
           <div className="pv-console-actions">
             <button
               ref={exploreButton}
@@ -518,10 +592,10 @@ export default function ProvedorPage() {
         {panelOpen && (
           <aside className="pv-panel" aria-label="Explorador da rede" id="pv-explorer" tabIndex={-1} ref={panel}>
             <div className="pv-panel-nav">
-              {island || showIncidents || pointDirectory ? (
+              {island || showIncidents || pointDirectory || modulo ? (
                 <button className="pv-link" onClick={back}>
                   <Icon name="back" />
-                  {obra?'Obras':showObras?'Aracatu':client&&investigation?'Investigação':client?(area?.name??site?.id):investigation?'Incidentes abertos':area?.kind==='street'?urbanAreas.get(area.districtId)?.name:area?'Aracatu':site?island?.name:'Visão geral'}
+                  {(client||site)&&origem?MODULO_LABEL[origem]:modulo?'Visão geral':obra?'Obras':showObras?'Aracatu':client&&investigation?'Investigação':client?(area?.name??site?.id):investigation?'Incidentes abertos':area?.kind==='street'?urbanAreas.get(area.districtId)?.name:area?'Aracatu':site?island?.name:'Visão geral'}
                 </button>
               ) : (
                 <span className="pv-kicker">ARACATU · BA</span>
@@ -531,9 +605,22 @@ export default function ProvedorPage() {
               </button>
             </div>
             {clientGroup && <button className="pv-hq-link" onClick={()=>inspect(clientGroup)}><Icon name="alert"/>Investigar falha com {clientGroup.reports.length} clientes</button>}
-            {client ? (
+            {modulo ? (
+              <PainelGestao
+                modulo={modulo}
+                op={operacao}
+                abrirCliente={chooseClient}
+                abrirPonto={chooseSite}
+                abrirModulo={abrirModulo}
+                aoMudarIncidentes={(lista) => {
+                  setItems(lista)
+                  setAnnouncement('Ocorrência encerrada pela ordem de serviço.')
+                }}
+              />
+            ) : client ? (
               <ClientDetails
                 key={client.id}
+                op={operacao}
                 client={client}
                 incident={incidents.get(client.id)}
                 onSite={chooseSite}
@@ -591,6 +678,7 @@ export default function ProvedorPage() {
                     />
                     {groups.some(g=>g.pointId===site.id)&&<OutageCards groups={groups.filter(g=>g.pointId===site.id)} inspect={inspect}/>}
                     <ObrasDoPonto ponto={site} escolher={chooseObra} />
+                    <PainelGrafana ponto={site} />
                     <FacilityDetails point={site} />
                   </>
                 ) : island && island !== headquarters ? (

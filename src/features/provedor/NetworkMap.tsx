@@ -35,8 +35,37 @@ import { Icon } from './icons'
 import { selectionBeacon, towerSignals } from './mapEffects'
 import { centroObra, obras, progressoGeral, statusObra, STATUS_OBRA_LABEL, tamanhoObra, type Obra } from './obras'
 import { ancoraObra, animarObras, destacarObra, montarObras, pickObra } from './obrasModel'
+import { animarCamada, dispararEfeito, pickCamada, pintarCamada, type DadosCamada } from './camadas'
+import { useGestao } from './gestao/store'
 
-interface Props {
+const LEGENDA: Record<DadosCamada['camada'], [string, string][]> = {
+  rede: [
+    ['online', 'Operacional'],
+    ['unstable', 'Instável'],
+    ['offline', 'Sem conexão'],
+  ],
+  financeiro: [
+    ['online', 'Recebido no mês'],
+    ['neutro', 'A receber'],
+    ['unstable', 'Em atraso'],
+    ['offline', 'Vencido / bloqueado'],
+  ],
+  atendimento: [
+    ['azul', 'Ordem no prazo'],
+    ['unstable', 'Vence em até 4 h'],
+    ['offline', 'Prazo estourado'],
+  ],
+  monitor: [
+    ['online', 'Uso até 65%'],
+    ['unstable', '65% a 85%'],
+    ['offline', 'Acima de 85% ou falha'],
+  ],
+}
+export interface MapaProps {
+  /** Troca para a cidade 3D (quando disponível). */
+  trocarMapa?: () => void
+  /** Camada de gestão desenhada sobre o mapa (financeiro, atendimento, monitoramento). */
+  camada: DadosCamada
   obra: Obra | null
   dataObras: string | null
   selectObra: (obra: Obra) => void
@@ -55,6 +84,8 @@ interface Props {
   selectClient: (client: Client) => void
 }
 export default function NetworkMap({
+  trocarMapa,
+  camada,
   obra,
   dataObras,
   selectObra,
@@ -67,7 +98,7 @@ export default function NetworkMap({
   selectIsland,
   selectSite,
   selectClient,
-}: Props) {
+}: MapaProps) {
   const reduced = useReducedMotion()
   const host = useRef<HTMLDivElement>(null),
     surface = useRef<HTMLCanvasElement>(null),
@@ -173,6 +204,7 @@ export default function NetworkMap({
           ...canteiros.desenho,
           destaque: destacarObra(obra),
         })
+        pintarCamada(ctx, camera, camada)
         function label(id: string, x: number, y: number, visible: boolean) {
           const node = labels.current.get(id)
           if (!node) return
@@ -198,7 +230,7 @@ export default function NetworkMap({
         for(const group of groups){
           const point=pointById.get(group.pointId)!
           const [x,y]=camera.project(point.x,pointTop(point),point.z)
-          label(group.id,x,y-26,!client&&!area&&!site&&groups.find(g=>g.pointId===point.id)?.id===group.id)
+          label(group.id,x,y-26,camada.camada!=='financeiro'&&!client&&!area&&!site&&groups.find(g=>g.pointId===point.id)?.id===group.id)
         }
         for (const point of accessPoints) {
           const [x, y] = camera.project(point.x, pointTop(point), point.z)
@@ -212,7 +244,7 @@ export default function NetworkMap({
         for (const o of obras) {
           const [x, y] = camera.project(...ancoraObra(o, dataObras))
           const escolhida = obra?.id === o.id
-          label('obra:' + o.id, x, y, escolhida || (!client && !site && !area && (dataObras !== null || view.zoom >= 1.25) && view.zoom < 24 && !(obra && o.local.forma === 'ponto')))
+          label('obra:' + o.id, x, y, escolhida || (camada.camada === 'rede' && !client && !site && !area && (dataObras !== null || view.zoom >= 1.25) && view.zoom < 24 && !(obra && o.local.forma === 'ponto')))
         }
         if (zoomText.current) zoomText.current.value = Math.round(view.zoom * 100) + '%'
       }
@@ -221,6 +253,7 @@ export default function NetworkMap({
         paintTraffic(anim, camera, elapsed)
         towerSignals(anim, camera, elapsed, still)
         animarObras(anim, camera, elapsed, still, canteiros, dataObras)
+        animarCamada(anim, camera, performance.now(), still, camada)
         for (const [index, region] of regions.entries()) {
           const progress = 0.3 + ((elapsed / 2400 + index * 0.25) % 1) * 0.35
           const [x, y] = camera.project(...connectionPoint(region, progress))
@@ -283,7 +316,17 @@ export default function NetworkMap({
       el.removeEventListener('wheel', wheel)
       document.removeEventListener('visibilitychange', visibility)
     }
-  }, [incidents, site, client, activeGroup,area,groups,panelOpen, reduced, paused, obra, dataObras])
+  }, [incidents, site, client, activeGroup,area,groups,panelOpen, reduced, paused, obra, dataObras, camada])
+  // Recompensas das ações (moedas, confete, +XP) viram animação no mapa.
+  useEffect(
+    () =>
+      useGestao.subscribe((s, prev) => {
+        const vistos = new Set(prev.efeitos.map((e) => e.id))
+        for (const e of s.efeitos) if (!vistos.has(e.id)) dispararEfeito(e)
+        wake.current()
+      }),
+    [],
+  )
   const keep = (id: string, el: HTMLButtonElement | null) => {
     if (el) labels.current.set(id, el)
     else labels.current.delete(id)
@@ -377,6 +420,11 @@ export default function NetworkMap({
                 selectClient(c)
                 return
               }
+            }
+            const ordem = pickCamada(cam, x, y, camada)
+            if (ordem) {
+              selectClient(clientById.get(ordem.clientId)!)
+              return
             }
             const home = hitClient(x, y)
             if (home) {
@@ -477,18 +525,12 @@ export default function NetworkMap({
       </div>
       <div className="pv-map-bottom">
         <div className="pv-legend">
-          <span>
-            <i className="online" />
-            Operacional
-          </span>
-          <span>
-            <i className="unstable" />
-            Instável
-          </span>
-          <span>
-            <i className="offline" />
-            Sem conexão
-          </span>
+          {LEGENDA[camada.camada].map(([classe, texto]) => (
+            <span key={texto}>
+              <i className={classe} />
+              {texto}
+            </span>
+          ))}
         </div>
         <span className="pv-map-tip">Role para ajustar o zoom · Arraste para mover</span>
         <div className="pv-map-controls">
@@ -512,6 +554,11 @@ export default function NetworkMap({
           <button onClick={resetView} title="Visão geral" aria-label="Visão geral do mapa">
             <Icon name="focus" />
           </button>
+          {trocarMapa && (
+            <button onClick={trocarMapa} title="Ver a cidade em 3D" aria-label="Ver a cidade em 3D">
+              <Icon name="layers" />
+            </button>
+          )}
           {!reduced && (
             <button
               aria-pressed={paused}
