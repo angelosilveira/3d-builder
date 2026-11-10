@@ -7,6 +7,7 @@ const ProjectPage = lazy(() => import('./pages/ProjectPage'))
 const NewProjectWizard = lazy(() => import('./pages/NewProjectWizard'))
 const CanteiroPage = lazy(() => import('./features/canteiro/CanteiroPage'))
 const AppSecPage = lazy(() => import('./features/appsec/AppSecPage'))
+const ProvedorPage = lazy(() => import('./features/provedor/ProvedorPage'))
 
 function Shell() {
   return (
@@ -23,6 +24,7 @@ function Shell() {
           <NavLink to="/obras/nova">Nova obra</NavLink>
           <NavLink to="/canteiro">Canteiro ao vivo</NavLink>
           <NavLink to="/appsec">AppSec</NavLink>
+          <NavLink to="/provedor">Provedor</NavLink>
         </nav>
       </header>
       <main className="content">
@@ -38,6 +40,11 @@ export function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/provedor" element={
+          <Suspense fallback={<div className="loading">Carregando mapa do provedor…</div>}>
+            <ProvedorPage />
+          </Suspense>
+        } />
         {/* Gêmeo digital do canteiro: tela cheia, com HUD próprio. */}
         <Route
           path="/canteiro"

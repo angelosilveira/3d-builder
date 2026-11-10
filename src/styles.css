@@ -228,7 +228,8 @@ legend { font-size: 0.85rem; color: #334155; margin-bottom: 4px; }
 }
 @media (max-width: 640px) {
   .page { padding: 16px; }
-  .topbar { padding: 10px 16px; }
+  .topbar { padding: 10px 16px; flex-wrap: wrap; gap: 6px; }
+  .topbar nav { flex-wrap: wrap; }
   .form-grid { grid-template-columns: minmax(0, 1fr); }
   .span-2 { grid-column: auto; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
