@@ -19,6 +19,8 @@ const paths = {
   play: 'm7 4 13 8-13 8z',
   search: 'M17 10a7 7 0 1 1-14 0 7 7 0 1 1 14 0zm-2 5 6 6',
   bill: 'M5 3h14v18l-3-2-4 2-4-2-3 2zm3 5h8m-8 4h8',
+  obra: 'M5 21h6M8 21V5m0 0 12 2.5M8 5 4 8.5h4M8 3v2m9 2.1V12m-1.4 0h2.8v2.2h-2.8z',
+  calendar: 'M4 6h16v15H4zm0 5h16M8 3v5m8-5v5',
 }
 export function Icon({ name }: { name: keyof typeof paths }) {
   return (

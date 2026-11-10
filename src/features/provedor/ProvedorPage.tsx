@@ -28,6 +28,8 @@ import {
 import { facilityAt } from './facility'
 import { Icon } from './icons'
 import NetworkMap from './NetworkMap'
+import { HOJE_OBRAS, obras, statusObra, type Obra } from './obras'
+import { ListaObras, ObraDetalhe, ObrasDoPonto, ResumoObras } from './ObrasPanels'
 import './provedor.css'
 
 function Status({ value }: { value: Connection }) {
@@ -284,6 +286,10 @@ export default function ProvedorPage() {
   const [items, setItems] = useState(readIncidents)
   const [announcement, setAnnouncement] = useState('')
   const [fullscreen, setFullscreen] = useState(false)
+  const [obra, setObra] = useState<Obra | null>(null)
+  const [showObras, setShowObras] = useState(false)
+  /** Data da linha do tempo das obras (null = hoje, o que já foi executado). */
+  const [dataObras, setDataObras] = useState<string | null>(null)
   const root = useRef<HTMLDivElement>(null),
     panel = useRef<HTMLElement>(null),
     exploreButton = useRef<HTMLButtonElement>(null)
@@ -320,6 +326,8 @@ export default function ProvedorPage() {
     setOnlyAffected(false)
     setPointDirectory(false)
     setShowIncidents(false)
+    setObra(null)
+    setShowObras(false)
     setAnnouncement('')
     requestAnimationFrame(() => {
       if (panel.current) {
@@ -351,13 +359,29 @@ export default function ProvedorPage() {
     setIsland(islands.find((r) => r.id === next.regionId)!)
     setSite(pointById.get(next.pointId)!)
   }
+  function chooseObra(next: Obra) {
+    enter()
+    setIsland(headquarters)
+    setSite(null)
+    setClient(null)
+    setObra(next)
+  }
+  function openObras() {
+    enter()
+    setIsland(headquarters)
+    setSite(null)
+    setClient(null)
+    setShowObras(true)
+  }
   function openExplorer(alerts = false) {
     chooseIsland(null)
     setPanelOpen(true)
     setShowIncidents(alerts)
   }
   function back() {
-    if(client&&investigation)inspect(investigation)
+    if (obra) openObras()
+    else if (showObras) chooseIsland(headquarters)
+    else if(client&&investigation)inspect(investigation)
     else if(client&&area)chooseArea(area)
     else if(investigation)openExplorer(true)
     else if (client && site) chooseSite(site)
@@ -396,6 +420,9 @@ export default function ProvedorPage() {
     >
       <main className="pv-stage">
         <NetworkMap
+          obra={obra}
+          dataObras={dataObras}
+          selectObra={chooseObra}
           activeGroup={investigation??null} area={area} selectArea={chooseArea} groups={groups} investigate={inspect}
           island={island}
           site={site}
@@ -473,7 +500,20 @@ export default function ProvedorPage() {
             <Icon name="alert" />
             <strong>{incidents.size}</strong> incidentes
           </button>
+          <button onClick={openObras} title="Obras da rede em Aracatu">
+            <Icon name="obra" />
+            <strong>{obras.filter((o) => ['em_andamento', 'atrasada'].includes(statusObra(o))).length}</strong> obras
+          </button>
         </div>
+        {dataObras && (
+          <div className="pv-tempo-chip" role="status">
+            <Icon name="calendar" />
+            Obras em <strong>{dateLabel(dataObras)}</strong> · {dataObras < HOJE_OBRAS ? 'histórico' : 'previsto'}
+            <button className="pv-link" onClick={() => setDataObras(null)}>
+              Voltar para hoje
+            </button>
+          </div>
+        )}
         <small className="pv-demo-tag">Dados de demonstração</small>
         {panelOpen && (
           <aside className="pv-panel" aria-label="Explorador da rede" id="pv-explorer" tabIndex={-1} ref={panel}>
@@ -481,7 +521,7 @@ export default function ProvedorPage() {
               {island || showIncidents || pointDirectory ? (
                 <button className="pv-link" onClick={back}>
                   <Icon name="back" />
-                  {client&&investigation?'Investigação':client?(area?.name??site?.id):investigation?'Incidentes abertos':area?.kind==='street'?urbanAreas.get(area.districtId)?.name:area?'Aracatu':site?island?.name:'Visão geral'}
+                  {obra?'Obras':showObras?'Aracatu':client&&investigation?'Investigação':client?(area?.name??site?.id):investigation?'Incidentes abertos':area?.kind==='street'?urbanAreas.get(area.districtId)?.name:area?'Aracatu':site?island?.name:'Visão geral'}
                 </button>
               ) : (
                 <span className="pv-kicker">ARACATU · BA</span>
@@ -502,6 +542,10 @@ export default function ProvedorPage() {
                   setAnnouncement(next.some(i=>i.clientId===client.id)?'Incidente registrado no mapa.':'Ocorrência encerrada. Triagem atualizada.')
                 }}
               />
+            ) : obra ? (
+              <ObraDetalhe key={obra.id} obra={obra} data={dataObras} setData={setDataObras} abrirPonto={chooseSite} />
+            ) : showObras ? (
+              <ListaObras data={dataObras} setData={setDataObras} escolher={chooseObra} />
             ) : investigation ? <Investigation group={investigation} openClient={id=>chooseClient(clientById.get(id)!)} openPoint={()=>chooseSite(pointById.get(investigation.pointId)!)}/> : (
               <>
                 {island && <span className="pv-kicker">{island === headquarters ? 'SEDE URBANA' : 'ZONA RURAL'}</span>}
@@ -512,6 +556,7 @@ export default function ProvedorPage() {
                     {regions.length} regiões da zona rural.
                   </p>
                 )}
+                {island === headquarters && !site && !area && !filter && <ResumoObras abrir={openObras} escolher={chooseObra} />}
                 {area&&!site&&<p className="pv-empty">{area.kind==='street'?urbanAreas.get(area.districtId)?.name:'Bairro de Aracatu'} · {areaClients.length} assinantes</p>}
                 {site ? (
                   <>
@@ -545,6 +590,7 @@ export default function ProvedorPage() {
                       max={site.capacity}
                     />
                     {groups.some(g=>g.pointId===site.id)&&<OutageCards groups={groups.filter(g=>g.pointId===site.id)} inspect={inspect}/>}
+                    <ObrasDoPonto ponto={site} escolher={chooseObra} />
                     <FacilityDetails point={site} />
                   </>
                 ) : island && island !== headquarters ? (

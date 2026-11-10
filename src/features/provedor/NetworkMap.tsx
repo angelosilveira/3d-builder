@@ -33,8 +33,13 @@ import {
 } from './landscape'
 import { Icon } from './icons'
 import { selectionBeacon, towerSignals } from './mapEffects'
+import { centroObra, obras, progressoGeral, statusObra, STATUS_OBRA_LABEL, tamanhoObra, type Obra } from './obras'
+import { ancoraObra, animarObras, destacarObra, montarObras, pickObra } from './obrasModel'
 
 interface Props {
+  obra: Obra | null
+  dataObras: string | null
+  selectObra: (obra: Obra) => void
   activeGroup:OutageGroup|null
   area:UrbanArea|null
   selectArea:(area:UrbanArea)=>void
@@ -50,6 +55,9 @@ interface Props {
   selectClient: (client: Client) => void
 }
 export default function NetworkMap({
+  obra,
+  dataObras,
+  selectObra,
   activeGroup,area,selectArea,groups,investigate,
   island,
   site,
@@ -92,6 +100,12 @@ export default function NetworkMap({
     const place = client ?? site ?? area ?? island
     const el = host.current
     const baseScale = el ? projector(el.clientWidth, el.clientHeight, overview, true).scale : 10
+    if (obra && !client && !site) {
+      const [ox, oz] = centroObra(obra)
+      target.current = { ...overview, x: ox, z: oz, zoom: zoomLimit(Math.min(8, 90 / (tamanhoObra(obra) + 6))) }
+      wake.current()
+      return
+    }
     target.current = {
       ...overview,
       x: place?.x ?? 0,
@@ -99,7 +113,7 @@ export default function NetworkMap({
       zoom: client ? zoomLimit(145 / baseScale) : site ? 11 : area?.kind==='street'?9.2:area?6.4:island===headquarters?1.7:island?4.5:1,
     }
     wake.current()
-  }, [island, site, client, area,reset])
+  }, [island, site, client, area,reset, obra])
 
   useEffect(() => {
     const el = host.current,
@@ -120,6 +134,7 @@ export default function NetworkMap({
     const members=activeGroup?new Set(activeGroup.reports.map(r=>r.clientId)):null
     const alerts = [...incidents.values()].map((item) => ({ client: clientById.get(item.clientId)!, kind: item.kind }))
     const still = reduced || paused
+    const canteiros = montarObras(dataObras)
     function schedule() {
       if (!frame && !document.hidden) frame = requestAnimationFrame(render)
     }
@@ -154,7 +169,10 @@ export default function NetworkMap({
       if (dirty) {
         ctx.clearRect(0, 0, width, height)
         if (hint.current) hint.current.hidden = true
-        homes.current = paintLandscape(ctx, camera, incidents, site, client,area,members)
+        homes.current = paintLandscape(ctx, camera, incidents, site, client, area, members, {
+          ...canteiros.desenho,
+          destaque: destacarObra(obra),
+        })
         function label(id: string, x: number, y: number, visible: boolean) {
           const node = labels.current.get(id)
           if (!node) return
@@ -191,12 +209,18 @@ export default function NetworkMap({
           const [x, y] = camera.project(client.x, markerHeight, client.z)
           label(client.id, x, y - 19, true)
         }
+        for (const o of obras) {
+          const [x, y] = camera.project(...ancoraObra(o, dataObras))
+          const escolhida = obra?.id === o.id
+          label('obra:' + o.id, x, y, escolhida || (!client && !site && !area && (dataObras !== null || view.zoom >= 1.25) && view.zoom < 24 && !(obra && o.local.forma === 'ponto')))
+        }
         if (zoomText.current) zoomText.current.value = Math.round(view.zoom * 100) + '%'
       }
       if (!still || dirty) {
         anim.clearRect(0, 0, width, height)
         paintTraffic(anim, camera, elapsed)
         towerSignals(anim, camera, elapsed, still)
+        animarObras(anim, camera, elapsed, still, canteiros, dataObras)
         for (const [index, region] of regions.entries()) {
           const progress = 0.3 + ((elapsed / 2400 + index * 0.25) % 1) * 0.35
           const [x, y] = camera.project(...connectionPoint(region, progress))
@@ -259,7 +283,7 @@ export default function NetworkMap({
       el.removeEventListener('wheel', wheel)
       document.removeEventListener('visibilitychange', visibility)
     }
-  }, [incidents, site, client, activeGroup,area,groups,panelOpen, reduced, paused])
+  }, [incidents, site, client, activeGroup,area,groups,panelOpen, reduced, paused, obra, dataObras])
   const keep = (id: string, el: HTMLButtonElement | null) => {
     if (el) labels.current.set(id, el)
     else labels.current.delete(id)
@@ -301,10 +325,17 @@ export default function NetworkMap({
               const bounds = el.getBoundingClientRect(),
                 x = e.clientX - bounds.left,
                 y = e.clientY - bounds.top
-              const point = pickPoint(projector(el.clientWidth, el.clientHeight, current.current, panelOpen), x, y)
+              const cam = projector(el.clientWidth, el.clientHeight, current.current, panelOpen)
+              const point = pickPoint(cam, x, y)
               const hovered = point ?? hitClient(x, y)
-              tip.hidden = !hovered
-              e.currentTarget.style.cursor = hovered ? 'pointer' : 'grab'
+              const sobreObra = hovered ? undefined : pickObra(cam, x, y)
+              tip.hidden = !hovered && !sobreObra
+              e.currentTarget.style.cursor = hovered || sobreObra ? 'pointer' : 'grab'
+              if (sobreObra) {
+                tip.textContent = sobreObra.nome + ' · ' + Math.round(progressoGeral(sobreObra, dataObras) * 100) + '%'
+                tip.style.left = Math.max(5, Math.min(el.clientWidth - tip.offsetWidth - 5, x + 12)) + 'px'
+                tip.style.top = Math.max(5, y - 34) + 'px'
+              }
               if (hovered) {
                 tip.textContent =
                   hovered.name + ' · ' + (point ? point.id : statusText[incidents.get(hovered.id)?.kind ?? 'online'])
@@ -350,6 +381,11 @@ export default function NetworkMap({
             const home = hitClient(x, y)
             if (home) {
               selectClient(home)
+              return
+            }
+            const canteiro = pickObra(cam, x, y)
+            if (canteiro) {
+              selectObra(canteiro)
               return
             }
             const it = pickIsland(cam, x, y)
@@ -401,6 +437,26 @@ export default function NetworkMap({
                 {client.name}
               </button>
             )}
+            {obras.map((o) => {
+              const st = statusObra(o)
+              const valor = Math.round(progressoGeral(o, dataObras) * 100)
+              return (
+                <button
+                  hidden
+                  key={o.id}
+                  ref={(el) => keep('obra:' + o.id, el)}
+                  className={'pv-obra-pin ' + st}
+                  aria-pressed={obra?.id === o.id}
+                  onClick={() => selectObra(o)}
+                  title={o.nome}
+                  aria-label={`Obra ${o.nome}: ${valor}% ${dataObras ? 'previsto na data' : 'executado'}, ${STATUS_OBRA_LABEL[st]}`}
+                >
+                  <Icon name="obra" />
+                  <span>{o.id}</span>
+                  <b>{valor}%</b>
+                </button>
+              )
+            })}
             {accessPoints.map((p) => (
               <button
                 hidden

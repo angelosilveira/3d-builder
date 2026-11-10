@@ -644,7 +644,7 @@
   width: 14px;
   color: #8ce4c5;
 }
-.pv-summary button:last-child svg {
+.pv-summary button:nth-child(3) svg {
   color: #ffbb88;
 }
 .pv-demo-tag {
@@ -1023,3 +1023,105 @@
 .pv-outage-card>span{display:flex;align-items:center;gap:7px;color:#ffb69d;font-size:13px}.pv-outage-card small{color:#c7bdb6}.pv-outage-card b{color:#a8dfce;margin-top:5px;font-size:11px}
 .pv-row time{font:11px ui-monospace,monospace;color:var(--pv-coral)}
 @media(max-width:730px){.pv-geo-label{font-size:9px!important}.pv-outage-pin{font-size:9px!important}}
+
+/* ==========================================================================
+   Obras da rede (sede)
+   ========================================================================== */
+.pv { --pv-obra-andamento: #f4c676; --pv-obra-atrasada: #ff918a; --pv-obra-concluida: #79e3bd; --pv-obra-planejada: #9fb2c2; }
+.pv-obra-status { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; padding: 3px 7px; border-radius: 4px; white-space: nowrap; background: color-mix(in srgb, currentColor 11%, transparent); }
+.pv-obra-status i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.pv-obra-status.em_andamento, .pv-obra-icone.em_andamento { color: var(--pv-obra-andamento); }
+.pv-obra-status.atrasada, .pv-obra-icone.atrasada { color: var(--pv-obra-atrasada); }
+.pv-obra-status.concluida, .pv-obra-icone.concluida { color: var(--pv-obra-concluida); }
+.pv-obra-status.planejada, .pv-obra-icone.planejada { color: var(--pv-obra-planejada); }
+.pv-obra-icone { display: grid; place-items: center; background: color-mix(in srgb, currentColor 13%, #172633); flex-shrink: 0; }
+
+.pv-obra-row { align-items: center; }
+.pv-obra-row .pv-row-label { flex: 1; }
+.pv-obra-pct { display: grid; justify-items: end; gap: 4px; font: 600 13px ui-monospace, monospace; }
+.pv-obra-pct .pv-obra-status { font: 500 10px Inter, system-ui, sans-serif; }
+.pv-obra-barra { position: relative; display: block; height: 6px; margin-top: 5px; border-radius: 3px; background: #243444; overflow: visible; }
+.pv-obra-barra > i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #d9a43a, var(--pv-obra-andamento)); transition: width 0.4s ease; }
+.pv-obra-barra > b { position: absolute; top: -3px; width: 2px; height: 12px; margin-left: -1px; background: #e9f3f2; border-radius: 1px; box-shadow: 0 0 0 1px #0d1621; }
+
+.pv-tempo { margin: 14px 0 6px; padding: 11px 12px 9px; border: 1px solid var(--pv-border); border-radius: 8px; background: #16232f; }
+.pv-tempo-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pv-tempo-topo > span { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.pv-tempo-topo strong { font: 600 13px ui-monospace, monospace; }
+.pv-tempo-topo small { color: var(--pv-muted); font-size: 11px; }
+.pv-tempo-trilho { position: relative; margin: 10px 0 2px; }
+.pv-tempo-trilho input { width: 100%; accent-color: var(--pv-obra-andamento); }
+.pv-tempo-hoje { position: absolute; top: -4px; width: 2px; height: 22px; background: var(--pv-mint); pointer-events: none; opacity: 0.8; }
+.pv-tempo-legenda { display: flex; justify-content: space-between; font: 10px ui-monospace, monospace; color: var(--pv-muted); }
+.pv-tempo-chip { position: absolute; z-index: 6; left: 50%; bottom: 74px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 8px; border: 1px solid #806a3e; background: #2e2a1fe8; color: #ffe7b5; font-size: 12px; box-shadow: 0 6px 18px #0008; white-space: nowrap; }
+.pv-tempo-chip strong { font-family: ui-monospace, monospace; }
+
+.pv-pxe { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin: 14px 0 6px; padding: 12px; border-radius: 8px; background: #16232f; border: 1px solid var(--pv-border); }
+.pv-pxe > div { display: grid; gap: 2px; }
+.pv-pxe span { color: var(--pv-muted); font-size: 11px; }
+.pv-pxe strong { font: 600 22px ui-monospace, monospace; }
+.pv-pxe .pv-obra-barra { grid-column: 1 / -1; height: 8px; }
+.pv-pxe p { grid-column: 1 / -1; margin: 6px 0 0; font-size: 12px; color: var(--pv-obra-concluida); }
+.pv-pxe p.ruim { color: var(--pv-obra-atrasada); }
+.pv-obra-aviso { margin: 8px 0; padding: 8px 10px; border-left: 3px solid var(--pv-obra-andamento); background: #2b2a20; border-radius: 4px; font-size: 12px; color: #f1dfb3; }
+.pv-custos { display: grid; gap: 4px; font-size: 13px; }
+.pv-custos small { color: var(--pv-muted); font-size: 11px; }
+.pv-custos .pv-obra-barra > i { background: linear-gradient(90deg, #4b8f9d, #79e3bd); }
+
+.pv-etapas { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
+.pv-etapas li { display: grid; gap: 4px; }
+.pv-etapas li > div { display: flex; flex-direction: column; }
+.pv-etapas strong { font-size: 12.5px; font-weight: 550; }
+.pv-etapas small { font-size: 11px; color: var(--pv-muted); }
+.pv-gantt { position: relative; display: block; height: 9px; border-radius: 3px; background: #1b2a37; }
+.pv-gantt-plano { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: #33485a; overflow: hidden; }
+.pv-gantt-plano i { display: block; height: 100%; background: var(--pv-obra-andamento); }
+.pv-gantt > b { position: absolute; top: -3px; width: 2px; height: 15px; margin-left: -1px; background: var(--pv-mint); }
+.pv-obra-tempo { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; }
+
+.pv-materiais { list-style: none; margin: 0; padding: 0; }
+.pv-materiais li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #293742; font-size: 12px; }
+.pv-materiais li > div { display: flex; flex-direction: column; min-width: 0; }
+.pv-materiais small { color: var(--pv-muted); font-size: 11px; }
+.pv-materiais li > span { font-family: ui-monospace, monospace; white-space: nowrap; color: var(--pv-obra-concluida); }
+.pv-materiais li > span.falta { color: var(--pv-obra-andamento); }
+.pv-equipe { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.pv-equipe li { padding: 4px 8px; border-radius: 5px; background: #1e2e3b; font-size: 12px; }
+.pv-equipe b { font-family: ui-monospace, monospace; color: var(--pv-obra-andamento); }
+
+.pv-obra-pin {
+  position: absolute;
+  top: -200px;
+  left: -200px;
+  transform: translate(-50%, -100%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px 2px 4px;
+  border-radius: 5px;
+  border: 1px solid #c9a35e;
+  background: #3b3222ee;
+  color: #ffe7b5 !important;
+  font: 600 10px ui-monospace, monospace !important;
+  white-space: nowrap;
+  box-shadow: 0 3px 9px #0007;
+}
+.pv-obra-pin svg { width: 13px; height: 13px; color: var(--pv-obra-andamento); }
+.pv-obra-pin b { color: #fff; }
+.pv-obra-pin.atrasada { border-color: #e48a7e; background: #4a2c2aee; }
+.pv-obra-pin.atrasada svg { color: var(--pv-obra-atrasada); }
+.pv-obra-pin.concluida { border-color: #5fae94; background: #1d3b35ee; }
+.pv-obra-pin.concluida svg { color: var(--pv-obra-concluida); }
+.pv-obra-pin.planejada { border-color: #73889a; background: #23313dee; border-style: dashed; }
+.pv-obra-pin.planejada svg { color: var(--pv-obra-planejada); }
+.pv-obra-pin[aria-pressed='true'] { z-index: 3; outline: 2px solid var(--pv-mint); outline-offset: 1px; }
+.pv-summary button:last-child svg { color: var(--pv-obra-andamento); }
+
+@media (max-width: 730px) {
+  .pv-obra-pin { font-size: 9px !important; }
+  .pv-obra-pin span { display: none; }
+  .pv-tempo-chip { bottom: auto; top: 112px; font-size: 11px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pv-obra-barra > i { transition: none; }
+}

@@ -1,4 +1,5 @@
 import { districts, cityStreets, type UrbanArea } from './city'
+import type { DesenhoObras } from './obrasModel'
 import {
   accessPoints,
   clientById,
@@ -12,8 +13,8 @@ import {
   type Island,
 } from './data'
 
-type Point = [number, number, number]
-type Pixel = [number, number]
+export type Point = [number, number, number]
+export type Pixel = [number, number]
 export interface View {
   x: number
   z: number
@@ -48,7 +49,7 @@ export function projector(width: number, height: number, view: View, panelOpen =
 export type Projection = ReturnType<typeof projector>
 export const zoomLimit = (value: number) => Math.max(0.65, Math.min(32, value))
 
-const ground = 0.8
+export const ground = 0.8
 export function islandSize(island: Island) {
   return island === headquarters ? { rx: 38, rz: 26 } : { rx: 13.7, rz: 11.65 }
 }
@@ -88,19 +89,19 @@ const coast = [
   [-1, 0.31],
 ]
 
-interface Face {
+export interface Face {
   points: Point[]
   color: string
   details?: Face[]
 }
-function solid(faces: Face[], bottom: Point[], top: Point[], colors: string[], lid: string) {
+export function solid(faces: Face[], bottom: Point[], top: Point[], colors: string[], lid: string) {
   for (let i = 0; i < bottom.length; i++) {
     const n = (i + 1) % bottom.length
     faces.push({ points: [bottom[i], bottom[n], top[n], top[i]], color: colors[i % colors.length] })
   }
   faces.push({ points: top, color: lid })
 }
-function box(faces: Face[], x: number, y: number, z: number, w: number, h: number, d: number, colors: string[]) {
+export function box(faces: Face[], x: number, y: number, z: number, w: number, h: number, d: number, colors: string[]) {
   const base: Point[] = [
     [x - w / 2, y, z - d / 2],
     [x + w / 2, y, z - d / 2],
@@ -116,11 +117,11 @@ function box(faces: Face[], x: number, y: number, z: number, w: number, h: numbe
   )
 }
 const bark = ['#685749', '#695a48', '#866b4d', '#927552']
-const walls = ['#a1b3a7', '#a3afa8', '#f0dec1', '#d2c3ab', '#fff1cf']
-const glass = ['#25475a', '#315366', '#527882', '#315565', '#a1cfd0']
-const metal = ['#596e79', '#536777', '#c6d1c9', '#8599a0', '#d6e0d5']
+export const walls = ['#a1b3a7', '#a3afa8', '#f0dec1', '#d2c3ab', '#fff1cf']
+export const glass = ['#25475a', '#315366', '#527882', '#315565', '#a1cfd0']
+export const metal = ['#596e79', '#536777', '#c6d1c9', '#8599a0', '#d6e0d5']
 
-function beam(faces: Face[], start: Point, end: Point, radius: number, colors: string[]) {
+export function beam(faces: Face[], start: Point, end: Point, radius: number, colors: string[]) {
   const corners = (p: Point): Point[] =>
     [
       [-1, -1],
@@ -460,7 +461,7 @@ export function pickIsland(camera: Projection, sx: number, sy: number) {
   return null
 }
 
-function path(ctx: CanvasRenderingContext2D, points: Pixel[], color: string) {
+export function path(ctx: CanvasRenderingContext2D, points: Pixel[], color: string) {
   ctx.beginPath()
   points.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)))
   ctx.closePath()
@@ -471,7 +472,7 @@ function path(ctx: CanvasRenderingContext2D, points: Pixel[], color: string) {
   ctx.lineWidth = 0.45
   ctx.stroke()
 }
-function paintFaces(ctx: CanvasRenderingContext2D, faces: Face[], camera: Projection) {
+export function paintFaces(ctx: CanvasRenderingContext2D, faces: Face[], camera: Projection) {
   const sorted = faces.map((face) => ({
     face,
     depth: face.points.reduce((sum, [x, y, z]) => sum + camera.depth(x, z) * 0.81 + y * 0.59, 0) / face.points.length,
@@ -541,6 +542,7 @@ export function paintLandscape(
   selected: Client | null,
   area:UrbanArea|null=null,
   members:ReadonlySet<string>|null=null,
+  obrasCena:DesenhoObras|null=null,
 ): HomeHit[] {
   const homes = homeSprites(camera),
     hits: HomeHit[] = []
@@ -600,7 +602,12 @@ export function paintLandscape(
       ctx.fillStyle=area.kind==='street'?'#8de9d580':'#8de9d518';ctx.fill()
       ctx.strokeStyle='#3a877b';ctx.lineWidth=1.6;ctx.stroke()
     }
-    const ordered = [...objects].sort((a, b) => depth(a.x, a.z) - depth(b.x, b.z))
+    // Canteiros de obra da sede: chão (lotes, valas) por baixo e as estruturas
+    // entram na mesma ordenação de profundidade das casas e prédios.
+    const extras = island === headquarters && obrasCena ? obrasCena.objetos : []
+    if (extras.length) for (const camada of obrasCena!.chao) paintFaces(ctx, camada, camera)
+    if (island === headquarters && obrasCena?.destaque) obrasCena.destaque(ctx, camera)
+    const ordered: Object3D[] = [...objects, ...extras].sort((a, b) => depth(a.x, a.z) - depth(b.x, b.z))
     // Access links are confined to the selected station. The backbone stays visible in the overview.
     for (const point of accessPoints.filter((p) => p.regionId === island.id)) {
       const origin = project(island.x, 0.93, island.z),
