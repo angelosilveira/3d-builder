@@ -76,7 +76,7 @@ export interface PulsoRegiao {
 }
 
 export function criarCidade(container: HTMLElement, opcoes: { horario?: Horario } = {}) {
-  const stage = createStage(container, { time: opcoes.horario ?? 'dia' })
+  const stage = createStage(container, { time: opcoes.horario ?? 'noite' })
   const { scene } = stage
   const r = rng(2026)
   const layout = gridLayout({ blocksX, blocksZ, road: RUA, sidewalk: CALCADA })

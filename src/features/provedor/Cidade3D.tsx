@@ -97,7 +97,7 @@ export default function Cidade3D({
   const ancoras = useRef(new Map<string, Ancora>())
   const dica = useRef<HTMLDivElement>(null)
   const [pronta, setPronta] = useState(false)
-  const [horario, setHorario] = useState<Horario>('dia')
+  const [horario, setHorario] = useState<Horario>('noite')
   const [perto, setPerto] = useState(false)
   const [flutuantes, setFlutuantes] = useState<Flutuante[]>([])
   const leitura = useMonitorStore((s) => s.leitura)
