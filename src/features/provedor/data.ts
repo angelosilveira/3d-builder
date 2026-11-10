@@ -138,6 +138,21 @@ const surnames = [
   'Guedes',
 ]
 const originalNames = names.flat()
+/**
+ * Faturas em aberto na data de referência (10/11/2026). O vencimento é no dia 5, 10, 15 ou 20,
+ * conforme o contrato: a maioria está em dia, parte vence nos próximos dias, ~4% deve outubro
+ * e ~1% também setembro (candidatos a bloqueio).
+ */
+export const dueDay = (index: number) => [5, 10, 15, 20][index % 4]
+function openInvoices(index: number) {
+  const day = String(dueDay(index)).padStart(2, '0'),
+    chance = (index * 7919 + 13) % 100
+  const open: string[] = []
+  if (chance < 1) open.push('2026-09-' + day)
+  if (chance < 4) open.push('2026-10-' + day)
+  if (chance < (dueDay(index) === 5 ? 10 : dueDay(index) === 10 ? 55 : 88)) open.push('2026-11-' + day)
+  return open
+}
 export const clients: Client[] = [...regions, headquarters].flatMap((region, r) =>
   Array.from({ length: region === headquarters ? citySize : 256 }, (_, i) => {
     const city = region === headquarters
@@ -181,10 +196,7 @@ export const clients: Client[] = [...regions, headquarters].flatMap((region, r) 
         : originalNames[(index - 24) % 24] + ' ' + surnames[Math.floor((index - 24) / 24)],
       address: urban ? urban.street.name+', '+urban.number : streets[r]+', '+(24+11*i),
       speed: [300, 500, 800][plan],
-      invoices: (index % 4 === 0 ? ['2026-10-10', '2026-11-10'] : index % 3 === 0 ? ['2026-11-10'] : []).map((due) => ({
-        due,
-        cents: amounts[plan],
-      })),
+      invoices: openInvoices(index).map((due) => ({ due, cents: amounts[plan] })),
       x: urban ? urban.x : point.x + (col - 3.5) * 0.95 + (col < 4 ? -0.35 : 0.35),
       z: urban ? urban.z : point.z + (row - 3.5) * 0.89 + (row < 4 ? -0.32 : 0.32),
     }

@@ -62,9 +62,11 @@ export function trafficRoad(island: Island) {
   }
 }
 export const pointTop = (p: AccessPoint) => (p.technology === 'radio' ? 4.08 : 1.91)
+let frontFirst: { angle: number; list: AccessPoint[] } | null = null
 export function pickPoint(cam: Projection, x: number, y: number) {
-  const ordered = [...accessPoints].sort((a, b) => cam.depth(b.x, b.z) - cam.depth(a.x, a.z))
-  return ordered.find((p) => {
+  if (frontFirst?.angle !== cam.angle)
+    frontFirst = { angle: cam.angle, list: [...accessPoints].sort((a, b) => cam.depth(b.x, b.z) - cam.depth(a.x, a.z)) }
+  return frontFirst.list.find((p) => {
     const [px, py] = cam.project(p.x, pointTop(p), p.z)
     const [, foot] = cam.project(p.x, ground, p.z)
     return (
@@ -498,7 +500,23 @@ export function connectionPoint(island: Island, t: number): Point {
   return [island.x * t, -0.2 + Math.sin(t * Math.PI) * 2.6, island.z * t]
 }
 // Rasterize four house models once per orientation; panning and zooming reuse their geometry.
-const sprites = new Map<number, HTMLCanvasElement[]>()
+// Cada modelo guarda também cópias reduzidas (1/2, 1/4, 1/8): com o mapa afastado as casas
+// ocupam poucos pixels e reduzir a imagem cheia a cada quadro era o maior custo do desenho.
+const sprites = new Map<number, HTMLCanvasElement[][]>()
+function mips(full: HTMLCanvasElement) {
+  const levels = [full]
+  for (let k = 1; k < 4; k++) {
+    const prev = levels[k - 1],
+      next = document.createElement('canvas')
+    next.width = prev.width / 2
+    next.height = prev.height / 2
+    const ctx = next.getContext('2d')!
+    ctx.imageSmoothingQuality = 'high'
+    ctx.drawImage(prev, 0, 0, next.width, next.height)
+    levels.push(next)
+  }
+  return levels
+}
 function homeSprites(camera: Projection) {
   const direction = ((Math.round(camera.angle / (Math.PI / 18)) % 36) + 36) % 36
   const existing = sprites.get(direction)
@@ -522,11 +540,92 @@ function homeSprites(camera: Projection) {
     paintFaces(ctx, walk, { ...camera, project, depth })
     house(faces, v)
     paintFaces(ctx, faces, { ...camera, project, depth })
-    return sprite
+    return mips(sprite)
   })
   if (sprites.size >= 6) sprites.delete(sprites.keys().next().value!)
   sprites.set(direction, result)
   return result
+}
+// A ordem de profundidade só muda quando o mapa gira (ou os canteiros mudam): guarda o
+// resultado em vez de reordenar milhares de objetos a cada quadro de arrasto ou zoom.
+const semExtras: readonly Object3D[] = []
+const depthOrder = new Map<string, { angle: number; extras: readonly unknown[]; list: Object3D[] }>()
+function inDepthOrder(id: string, objects: Object3D[], extras: readonly Object3D[], camera: Projection) {
+  const cached = depthOrder.get(id)
+  if (cached && cached.angle === camera.angle && cached.extras === extras) return cached.list
+  const list = [...objects, ...extras].sort((a, b) => camera.depth(a.x, a.z) - camera.depth(b.x, b.z))
+  depthOrder.set(id, { angle: camera.angle, extras, list })
+  return list
+}
+// Com o mapa afastado, as casas de cada quadra (bairro na cidade, ponto de acesso na zona
+// rural) são desenhadas uma vez numa imagem própria. Arrastar e dar zoom passam a copiar
+// ~22 imagens em vez de 2.560 casas por quadro.
+const blockRatio = 0.2
+const blockScale = (43 * blockRatio) / homeScale
+interface Block {
+  island: string
+  x: number
+  z: number
+  minX: number
+  minY: number
+  canvas: HTMLCanvasElement
+}
+let blocks: { angle: number; list: Block[] } | null = null
+let steadyAngle = NaN
+function homeBlocks(camera: Projection, homes: HTMLCanvasElement[][]) {
+  if (blocks?.angle === camera.angle) return blocks.list
+  // Só monta quando o ângulo se repete: enquanto o mapa gira, vale o desenho casa a casa.
+  if (steadyAngle !== camera.angle) {
+    steadyAngle = camera.angle
+    return null
+  }
+  const c = Math.cos(camera.angle),
+    s = Math.sin(camera.angle)
+  const groups = new Map<string, { island: string; items: Object3D[] }>()
+  for (const model of models)
+    for (const obj of model.objects) {
+      if (!obj.client) continue
+      const key = obj.client.districtId ?? obj.client.pointId
+      const group = groups.get(key) ?? { island: model.island.id, items: [] }
+      group.items.push(obj)
+      groups.set(key, group)
+    }
+  const list: Block[] = []
+  for (const { island, items } of groups.values()) {
+    const x = items.reduce((sum, o) => sum + o.x, 0) / items.length,
+      z = items.reduce((sum, o) => sum + o.z, 0) / items.length
+    const placed = items
+      .map((o) => ({
+        o,
+        depth: (o.x - x) * s + (o.z - z) * c,
+        px: ((o.x - x) * c - (o.z - z) * s) * blockScale,
+      }))
+      .sort((a, b) => a.depth - b.depth)
+    const w = 152 * blockRatio,
+      h = 216 * blockRatio
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity
+    for (const it of placed) {
+      const py = it.depth * 0.59 * blockScale
+      minX = Math.min(minX, it.px - w / 2)
+      maxX = Math.max(maxX, it.px + w / 2)
+      minY = Math.min(minY, py - 174 * blockRatio)
+      maxY = Math.max(maxY, py + 42 * blockRatio)
+    }
+    minX = Math.floor(minX)
+    minY = Math.floor(minY)
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.ceil(maxX - minX)
+    canvas.height = Math.ceil(maxY - minY)
+    const ctx = canvas.getContext('2d')!
+    for (const it of placed)
+      ctx.drawImage(homes[it.o.variant!][2], it.px - w / 2 - minX, it.depth * 0.59 * blockScale - 174 * blockRatio - minY, w, h)
+    list.push({ island, x, z, minX, minY, canvas })
+  }
+  blocks = { angle: camera.angle, list }
+  return list
 }
 export interface HomeHit {
   client: Client
@@ -604,10 +703,10 @@ export function paintLandscape(
     }
     // Canteiros de obra da sede: chão (lotes, valas) por baixo e as estruturas
     // entram na mesma ordenação de profundidade das casas e prédios.
-    const extras = island === headquarters && obrasCena ? obrasCena.objetos : []
+    const extras: readonly Object3D[] = island === headquarters && obrasCena ? obrasCena.objetos : semExtras
     if (extras.length) for (const camada of obrasCena!.chao) paintFaces(ctx, camada, camera)
     if (island === headquarters && obrasCena?.destaque) obrasCena.destaque(ctx, camera)
-    const ordered: Object3D[] = [...objects, ...extras].sort((a, b) => depth(a.x, a.z) - depth(b.x, b.z))
+    const ordered = inDepthOrder(island.id, objects, extras, camera)
     // Access links are confined to the selected station. The backbone stays visible in the overview.
     for (const point of accessPoints.filter((p) => p.regionId === island.id)) {
       const origin = project(island.x, 0.93, island.z),
@@ -631,10 +730,32 @@ export function paintLandscape(
       ctx.lineWidth = selected ? 2 : 1
       ctx.stroke()
     }
+    const ratio = (scale * homeScale) / 43
+    // Menor cópia que ainda cobre o tamanho na tela (ratio 0,2 → usa a de 1/4).
+    const mip = ratio >= 0.5 ? 0 : ratio >= 0.25 ? 1 : ratio >= 0.125 ? 2 : 3
+    // Sem casa destacada ou esmaecida, o mapa afastado usa as quadras prontas.
+    const ready = ratio <= blockRatio && !area && !members && !selected ? homeBlocks(camera, homes) : null
+    if (ready) {
+      const k = scale / blockScale
+      for (const b of ready) {
+        if (b.island !== island.id) continue
+        const [bx, by] = project(b.x, ground, b.z)
+        const left = bx + b.minX * k,
+          top = by + b.minY * k
+        if (left > camera.width || top > camera.height || left + b.canvas.width * k < 0 || top + b.canvas.height * k < 0) continue
+        ctx.drawImage(b.canvas, left, top, b.canvas.width * k, b.canvas.height * k)
+      }
+    }
     for (const obj of ordered) {
       const [px, py] = project(obj.x, ground, obj.z)
       if (obj.client) {
-        const ratio = (scale * homeScale) / 43
+        if (ready) {
+          if (px > -9 && py > -9 && px < camera.width + 9 && py < camera.height + 9) {
+            const center = project(obj.x, ground + 0.29, obj.z)
+            hits.push({ client: obj.client, x: center[0], y: center[1], radius: Math.max(4, scale * 0.23) })
+          }
+          continue
+        }
         if (px < -85 * ratio || px > camera.width + 85 * ratio || py < -48 * ratio || py > camera.height + 180 * ratio)
           continue
         const outsideArea=area&&obj.client.districtId!==area.districtId || area?.kind==='street'&&obj.client.streetId!==area.id
@@ -645,7 +766,7 @@ export function paintLandscape(
           ctx.shadowBlur = 9
         } else if(outsideArea||members&&!members.has(obj.client.id))ctx.globalAlpha=.38
         else if (selected && island.id === selected.regionId) ctx.globalAlpha = 0.75
-        ctx.drawImage(homes[obj.variant!], px - 76 * ratio, py - 174 * ratio, 152 * ratio, 216 * ratio)
+        ctx.drawImage(homes[obj.variant!][mip], px - 76 * ratio, py - 174 * ratio, 152 * ratio, 216 * ratio)
         if (chosen) ctx.restore()
         else ctx.globalAlpha = 1
         const center = project(obj.x, ground + 0.29, obj.z)
